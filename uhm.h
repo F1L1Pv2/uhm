@@ -100,12 +100,12 @@ uint32_t uhm_chop16(char* data, uint32_t size, uint32_t* cursor, bool* error){
         }
     }
 
-    uint16_t p1 = (uint32_t)((uint8_t)*(data+*cursor + 0));
-    uint16_t p2 = (uint32_t)((uint8_t)*(data+*cursor + 1));
+    uint16_t p1 = (uint16_t)((uint8_t)*(data+*cursor + 0));
+    uint16_t p2 = (uint16_t)((uint8_t)*(data+*cursor + 1));
 
     *cursor += 2;
 
-    uint16_t out = (((uint32_t)p1) << 0 * 8) | (((uint32_t)p2) << 1 * 8);
+    uint16_t out = (((uint16_t)p1) << 0 * 8) | (((uint16_t)p2) << 1 * 8);
     return out;
 }
 
@@ -251,6 +251,38 @@ uint32_t uhm_linearGetColor(int32_t px, int32_t py, int32_t bbx, int32_t bby, ui
     return uhm_lerpColors(color1,color2, T);
 }
 
+uint32_t uhm_circularGetColor(
+    int32_t px, int32_t py, 
+    int32_t bbx, int32_t bby, 
+    uint32_t bbWidth, uint32_t bbHeight, 
+    float centerX, float centerY, 
+    float radius, 
+    uint32_t colorInner, uint32_t colorOuter) {
+    
+    // Compute the center position of the circular gradient
+    int32_t cy = centerX * bbWidth + bbx;
+    int32_t cx = centerY * bbHeight + bby;
+
+    // Calculate the distance of the point (px, py) from the center (cx, cy)
+    double dx = px - cx;
+    double dy = py - cy;
+    double distance = sqrt(dx * dx + dy * dy);
+
+    // Normalize the distance to the range [0, 1] using the radius
+    double t = distance / (radius * sqrt(bbWidth * bbWidth + bbHeight * bbHeight));
+
+    // Clamp `t` to the range [0, 1]
+    if (t < 0) t = 0;
+    if (t > 1) t = 1;
+
+    // Interpolate the colors based on the normalized distance
+    return uhm_lerpColors(colorInner, colorOuter, t);
+}
+
+#define cx px1
+#define cy py1
+#define radius px2
+
 typedef struct {
     float x,y,width,height,px1,py1,px2,py2;
     uint32_t color,color2;
@@ -289,6 +321,19 @@ bool uhm_parse_rectangle(uhm_rectangle* rectangle, char* data, uint32_t size, ui
         rectangle->color2 = uhm_chop32(data,size,cursor,&error);
         if(error) return false;
     }
+    else if(rectangle->fillType == 'C'){
+        rectangle->cx = uhm_chopf32(data,size,cursor,&error);
+        if(error) return false;
+        rectangle->cy = uhm_chopf32(data,size,cursor,&error);
+        if(error) return false;
+        rectangle->radius = uhm_chopf32(data,size,cursor,&error);
+        if(error) return false;
+
+        rectangle->color = uhm_chop32(data,size,cursor,&error);
+        if(error) return false;
+        rectangle->color2 = uhm_chop32(data,size,cursor,&error);
+        if(error) return false;
+    }
     else {
         UHM_PRINTF("ParseRectangle: UNKNOWN FILL TYPE\n");
         return false;
@@ -312,7 +357,11 @@ void uhm_draw_rectangle(uhm_rectangle* rectangle,uint32_t width, uint32_t height
 
             if(rectangle->fillType == 'L'){
                 ((uint32_t*)output_data)[i*width + j] = uhm_linearGetColor(i,j,realX,realY,realWidth,realHeight,rectangle->px1,rectangle->py1,rectangle->px2,rectangle->py2,rectangle->color,rectangle->color2);
-            }else{
+            }
+            else if(rectangle->fillType == 'C'){
+                ((uint32_t*)output_data)[i*width + j] = uhm_circularGetColor(i,j,realX,realY,realWidth,realHeight,rectangle->cx,rectangle->cy,rectangle->radius,rectangle->color,rectangle->color2);
+            }
+            else{
                 ((uint32_t*)output_data)[i*width + j] = rectangle->color;
             }
 
@@ -356,6 +405,20 @@ bool uhm_parse_circle(uhm_circle* circle, char* data, uint32_t size, uint32_t* c
         circle->color2 = uhm_chop32(data,size,cursor,&error);
         if(error) return false;
     }
+    else if(circle->fillType == 'C'){
+        circle->cx = uhm_chopf32(data,size,cursor,&error);
+        if(error) return false;
+        circle->cy = uhm_chopf32(data,size,cursor,&error);
+        if(error) return false;
+        circle->radius = uhm_chopf32(data,size,cursor,&error);
+        if(error) return false;
+
+        circle->color = uhm_chop32(data,size,cursor,&error);
+        if(error) return false;
+        circle->color2 = uhm_chop32(data,size,cursor,&error);
+        if(error) return false;
+    }
+
     else {
         UHM_PRINTF("ParseCircle: UNKNOWN FILL TYPE\n");
         return false;
@@ -380,13 +443,21 @@ void uhm_draw_circle(uhm_circle* circle, uint32_t width, uint32_t height, char* 
             if(y*y + x*x < realR*realR){
                 if(circle->fillType == 'L'){
                     ((uint32_t*)output_data)[i*width + j] = uhm_linearGetColor(i,j,realX - realR,realY - realR,realR*2,realR*2,circle->px1,circle->py1,circle->px2,circle->py2,circle->color,circle->color2);
-                }else{
+                }
+                else if(circle->fillType == 'C'){
+                    ((uint32_t*)output_data)[i*width + j] = uhm_circularGetColor(i,j,realX - realR,realY - realR,realR*2,realR*2,circle->cx,circle->cy,circle->radius,circle->color,circle->color2);
+                }
+                else{
                     ((uint32_t*)output_data)[i*width + j] = circle->color;
                 }
             }
         }
     }
 }
+
+#undef cx
+#undef cy
+#undef radius
 
 typedef struct{
     uint8_t opcode;

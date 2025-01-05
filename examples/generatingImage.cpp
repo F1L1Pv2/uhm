@@ -121,6 +121,20 @@ void add_rectangle_linearGradient(std::vector<char>& vec, float x, float y, floa
     add_color(vec,color2);
 }
 
+void add_rectangle_circularGradient(std::vector<char>& vec, float x, float y, float w, float h, float cx, float cy, float radius, uint32_t color1, uint32_t color2){
+    add_u8(vec,'R');
+    add_f32(vec,x);
+    add_f32(vec,y);
+    add_f32(vec,w);
+    add_f32(vec,h);
+    add_u8(vec,'C');
+    add_f32(vec,cx);
+    add_f32(vec,cy);
+    add_f32(vec,radius);
+    add_color(vec,color1);
+    add_color(vec,color2);
+}
+
 void add_circle_filled(std::vector<char>& vec, float x, float y, float r, uint32_t color){
     add_u8(vec,'C');
     add_f32(vec,x);
@@ -140,6 +154,19 @@ void add_circle_linearGradient(std::vector<char>& vec, float x, float y, float r
     add_f32(vec,py1);
     add_f32(vec,px2);
     add_f32(vec,py2);
+    add_color(vec,color1);
+    add_color(vec,color2);
+}
+
+void add_circle_circularGradient(std::vector<char>& vec, float x, float y, float r, float cx, float cy, float radius, uint32_t color1, uint32_t color2){
+    add_u8(vec,'C');
+    add_f32(vec,x);
+    add_f32(vec,y);
+    add_f32(vec,r);
+    add_u8(vec,'C');
+    add_f32(vec,cx);
+    add_f32(vec,cy);
+    add_f32(vec,radius);
     add_color(vec,color1);
     add_color(vec,color2);
 }
@@ -184,20 +211,27 @@ int main(){
     add_boilerplate(uhm_tester, 0xFF181818);
 
     
-    // // Example 1 - pure shapes
-    // add_rectangle_filled(uhm_tester,0.25,0.5,0.1,0.3,0xFFFF0000);
-    // add_circle_filled(uhm_tester,0.25,0.25,0.3,0xFF00FF00);
-    // add_rectangle_filled(uhm_tester,0.75,0.5,0.1,0.3,0xFFFF0000);
-    // add_rectangle_linearGradient(uhm_tester,0.75,0.75,0.1,0.1,0.0,0.0,1.0,1.0,0xFFFF00FF,0xFF00FF00);
-    // add_circle_linearGradient(
-    //     uhm_tester,
-    //     0.5,0.5,0.3,
-    //     0.5,0.0,
-    //     0.5,1.0,
-    //     0xFFFF00FF,0xFF00FFFF
-    // );
+    // Example 1 - pure shapes
+    add_rectangle_filled(uhm_tester,0.25,0.5,0.1,0.3,0xFFFF0000);
+    add_circle_filled(uhm_tester,0.25,0.25,0.3,0xFF00FF00);
+    add_rectangle_linearGradient(uhm_tester,0.75,0.75,0.1,0.1,0.0,0.0,1.0,1.0,0xFFFF00FF,0xFF00FF00);
+    add_rectangle_circularGradient(uhm_tester,0.0,0.75,0.2,0.1,0.5,0.5,0.5,0xFFFF00FF,0xFF00FF00);
+    add_circle_linearGradient(
+        uhm_tester,
+        0.5,0.5,0.3,
+        0.5,0.0,
+        0.5,1.0,
+        0xFFFF00FF,0xFF00FFFF
+    );
+    add_circle_circularGradient(
+        uhm_tester,
+        0.75,0.75,0.2,
+        0.5,0.7,
+        0.5,
+        0xFFFF00FF,0xFF00FFFF
+    );
 
-    // // Example 2 - tiled patterns
+    // Example 2 - tiled patterns
     // add_tiledPattern_startClause(uhm_tester,0.5,0.5,2,2);
     //     add_tiledPattern_startClause(uhm_tester,0.25,0.25,2,2);
     //         add_rectangle_linearGradient(uhm_tester,0,0,0.1,0.1,0.0,0.0,1.0,1.0,0xFFFF00FF,0xFF00FF00);
@@ -212,13 +246,13 @@ int main(){
     // add_endClause(uhm_tester);
 
     // Example 3 - patterns
-    add_definePattern_startClause(uhm_tester,69);
-        add_rectangle_linearGradient(uhm_tester,0,0,0.1,0.1,0.0,0.0,1.0,1.0,0xFFFFFF00,0xFF00FF00);
-        add_circle_linearGradient(uhm_tester,0.05,0.05,0.05,0.5,0.0,0.5,1.0,0xFFFF00FF,0xFF00FFFF);
-    add_endClause(uhm_tester);
-    add_tiledPattern_startClause(uhm_tester,0.5,0.5,2,2);
-        add_placePattern(uhm_tester,69,0.2,0.2);
-    add_endClause(uhm_tester);   
+    // add_definePattern_startClause(uhm_tester,69);
+    //     add_rectangle_linearGradient(uhm_tester,0,0,0.1,0.1,0.0,0.0,1.0,1.0,0xFFFFFF00,0xFF00FF00);
+    //     add_circle_linearGradient(uhm_tester,0.05,0.05,0.05,0.5,0.0,0.5,1.0,0xFFFF00FF,0xFF00FFFF);
+    // add_endClause(uhm_tester);
+    // add_tiledPattern_startClause(uhm_tester,0.5,0.5,2,2);
+    //     add_placePattern(uhm_tester,69,0.2,0.2);
+    // add_endClause(uhm_tester);   
 
     char* data = uhm_encode(uhm_tester.data(),uhm_tester.size(),width,height);
     if(data == nullptr){
