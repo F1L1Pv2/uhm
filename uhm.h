@@ -198,8 +198,7 @@ bool parse_instruction(char* data, uint32_t size, uint32_t width, uint32_t heigh
         int32_t realWidth = Rwidth*width;
         int32_t realHeight = Rheight*width;
 
-
-        UHM_PRINTF("Drawing rectangle x: %d y: %d width: %d height: %d fillType: %c color: %x",realX,realY,realWidth,realHeight,fillType,color);
+        UHM_PRINTF("Drawing rectangle x: %d y: %d width: %d height: %d fillType: %c color: %x\n",realX,realY,realWidth,realHeight,fillType,color);
 
         for(int32_t i = realY; i < realY+realHeight; i++){
             if(i < 0 || i >= width) continue;
@@ -208,8 +207,39 @@ bool parse_instruction(char* data, uint32_t size, uint32_t width, uint32_t heigh
                 ((uint32_t*)output_data)[i*width + j] = color;
             }
         }
-        
-    }else{
+    }
+    else if(opcode == 'C'){
+        float x = uhm_chopf32(data,size,cursor,&error);
+        if(error) return false;
+        float y = uhm_chopf32(data,size,cursor,&error);
+        if(error) return false;
+        float r = uhm_chopf32(data,size,cursor,&error);
+        if(error) return false;
+        uint8_t fillType = uhm_chop8(data,size,cursor,&error);
+        if(error) return false;
+        uint32_t color = uhm_chop32(data,size,cursor,&error);
+        if(error) return false;
+
+        int32_t realX = x*width;
+        int32_t realY = y*width;
+        int32_t realR = r*width;
+
+        UHM_PRINTF("Drawing circle x: %d y: %d radius: %d fillType: %c color: %x\n",realX,realY,realR,fillType,color);
+
+        for(int32_t i = realY - realR; i < realY + realR; i++){
+            if(i < 0 || i >= width) continue;
+            for(int j = realX - realR; j < realX + realR; j++){
+                if(j < 0 || j >= height) continue;
+                uint32_t y = i - realY;
+                uint32_t x = j - realX;
+                if(y*y + x*x < realR*realR){
+                    ((uint32_t*)output_data)[i*width + j] = color;
+                }
+            }
+        }
+    }
+    else{
+        UHM_PRINTF("Unknown Opcode\n");
         return false;
     }
 

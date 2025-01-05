@@ -106,6 +106,15 @@ void add_rectangle_filled(std::vector<char>& vec, float x, float y, float w, flo
     add_color(vec,color);
 }
 
+void add_circle_filled(std::vector<char>& vec, float x, float y, float r, uint32_t color){
+    add_u8(vec,'C');
+    add_f32(vec,x);
+    add_f32(vec,y);
+    add_f32(vec,r);
+    add_u8(vec,'F');
+    add_color(vec,color);
+}
+
 void add_boilerplate(std::vector<char>& vec, uint32_t backgroundColor){
     add_u8(vec,'U');
     add_u8(vec,'H');
@@ -114,15 +123,17 @@ void add_boilerplate(std::vector<char>& vec, uint32_t backgroundColor){
 }
 
 int main(){
-
+    uint32_t width = 512;
+    uint32_t height = 512;
     std::vector<char> uhm_tester = {};
     add_boilerplate(uhm_tester, 0xFF181818);
     add_rectangle_filled(uhm_tester,0.25,0.5,0.1,0.3,0xFFFF0000);
 
-    add_rectangle_filled(uhm_tester,0.75,0.1,0.25,0.25,0xFF00FF00);
+    add_circle_filled(uhm_tester,0.5,0.5,0.3,0xFF00FF00);
+    add_rectangle_filled(uhm_tester,0.75,0.5,0.1,0.3,0xFFFF0000);
 
-    char* data = uhm_encode(uhm_tester.data(),uhm_tester.size(),512,512);
-    stbi_write_png("output.png",512,512,4,data,512*4);
+    char* data = uhm_encode(uhm_tester.data(),uhm_tester.size(),width,height);
+    stbi_write_png("output.png",width,height,4,data,width*4);
 
     return 0;
 }
