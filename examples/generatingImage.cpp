@@ -151,6 +151,18 @@ void add_boilerplate(std::vector<char>& vec, uint32_t backgroundColor){
     add_color(vec,backgroundColor);
 }
 
+void add_tiledPattern_startClause(std::vector<char>& vec, float ox, float oy, uint16_t rows, uint16_t cols){
+    add_u8(vec,'T');
+    add_f32(vec,ox);
+    add_f32(vec,oy);
+    add_u16(vec,rows);
+    add_u16(vec,cols);
+}
+
+void add_endClause(std::vector<char>& vec){
+    add_u8(vec,'E');
+}
+
 int main(){
     uint32_t width = 512;
     uint32_t height = 512;
@@ -170,7 +182,17 @@ int main(){
         0xFFFF00FF,0xFF00FFFF
     );
 
+    // add_tiledPattern_startClause(uhm_tester,0.3,0.3,2,2);
+        
+        // add_rectangle_filled(uhm_tester,0,0,0.2,0.2,0xFFFF0000);
+
+    // add_endClause(uhm_tester);
+
     char* data = uhm_encode(uhm_tester.data(),uhm_tester.size(),width,height);
+    if(data == nullptr){
+        printf("an error occured! couldn't generate image\n");
+        return 1;
+    }
     stbi_write_png("output.png",width,height,4,data,width*4);
 
     return 0;

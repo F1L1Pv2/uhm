@@ -40,6 +40,8 @@ char* uhm_encode(char* data, uint32_t size, uint32_t width, uint32_t height);
 
 #define IF_ERR if(error != NULL)
 
+#define IF_ERR2 if(error != NULL && *error)
+
 char uhm_peek(char* data, uint32_t size, uint32_t cursor, bool* error){
     if(cursor + 1 > size){
         IF_ERR {
@@ -224,51 +226,59 @@ uint32_t uhm_linearGetColor(int32_t px, int32_t py, int32_t bbx, int32_t bby, ui
     return uhm_lerpColors(color1,color2, T);
 }
 
-bool uhm_draw_rectangle(char* data, uint32_t size, uint32_t width, uint32_t height, uint32_t* cursor, char* output_data, uint8_t opcode){
-    bool error = false;
-    float x,y,Rwidth,Rheight,px1,py1,px2,py2;
+struct uhm_rectangle{
+    float x,y,width,height,px1,py1,px2,py2;
     uint32_t color,color2;
+    uint8_t fillType;
+};
 
-    x = uhm_chopf32(data,size,cursor,&error);
+bool uhm_parse_rectangle(uhm_rectangle* rectangle, char* data, uint32_t size, uint32_t* cursor){
+    bool error = false;
+    rectangle->x = uhm_chopf32(data,size,cursor,&error);
     if(error) return false;
-    y = uhm_chopf32(data,size,cursor,&error);
+    rectangle->y = uhm_chopf32(data,size,cursor,&error);
     if(error) return false;
-    Rwidth = uhm_chopf32(data,size,cursor,&error);
+    rectangle->width = uhm_chopf32(data,size,cursor,&error);
     if(error) return false;
-    Rheight = uhm_chopf32(data,size,cursor,&error);
+    rectangle->height = uhm_chopf32(data,size,cursor,&error);
     if(error) return false;
-    uint8_t fillType = uhm_chop8(data,size,cursor,&error);
+    rectangle->fillType = uhm_chop8(data,size,cursor,&error);
     if(error) return false;
-
-    if(fillType == 'F'){
-        color = uhm_chop32(data,size,cursor,&error);
+        
+    if(rectangle->fillType == 'F'){
+        rectangle->color = uhm_chop32(data,size,cursor,&error);
         if(error) return false;
     }
-    else if(fillType == 'L'){
-        px1 = uhm_chopf32(data,size,cursor,&error);
+    else if(rectangle->fillType == 'L'){
+        rectangle->px1 = uhm_chopf32(data,size,cursor,&error);
         if(error) return false;
-        py1 = uhm_chopf32(data,size,cursor,&error);
+        rectangle->py1 = uhm_chopf32(data,size,cursor,&error);
         if(error) return false;
-        px2 = uhm_chopf32(data,size,cursor,&error);
+        rectangle->px2 = uhm_chopf32(data,size,cursor,&error);
         if(error) return false;
-        py2 = uhm_chopf32(data,size,cursor,&error);
+        rectangle->py2 = uhm_chopf32(data,size,cursor,&error);
         if(error) return false;
 
-        color = uhm_chop32(data,size,cursor,&error);
+        rectangle->color = uhm_chop32(data,size,cursor,&error);
         if(error) return false;
-        color2 = uhm_chop32(data,size,cursor,&error);
+        rectangle->color2 = uhm_chop32(data,size,cursor,&error);
         if(error) return false;
     }
     else {
-        UHM_PRINTF("DrawRectangle: UNKNOWN FILL TYPE\n");
+        UHM_PRINTF("ParseRectangle: UNKNOWN FILL TYPE\n");
         return false;
     }
 
+    return true;
+}
 
-    int32_t realX = x*width;
-    int32_t realY = y*width;
-    int32_t realWidth = Rwidth*width;
-    int32_t realHeight = Rheight*width;
+bool uhm_draw_rectangle(uhm_rectangle* rectangle,uint32_t width, uint32_t height, char* output_data){
+    bool error = false;
+
+    int32_t realX = rectangle->x*width;
+    int32_t realY = rectangle->y*width;
+    int32_t realWidth = rectangle->width*width;
+    int32_t realHeight = rectangle->height*width;
 
     UHM_PRINTF("Drawing rectangle x: %d y: %d width: %d height: %d\n",realX,realY,realWidth,realHeight);
 
@@ -277,10 +287,10 @@ bool uhm_draw_rectangle(char* data, uint32_t size, uint32_t width, uint32_t heig
         for(int32_t j = realX; j < realX+realWidth; j++){
             if(j < 0 || j >= height) continue;
 
-            if(fillType == 'L'){
-                ((uint32_t*)output_data)[i*width + j] = uhm_linearGetColor(i,j,realX,realY,realWidth,realHeight,px1,py1,px2,py2,color,color2);
+            if(rectangle->fillType == 'L'){
+                ((uint32_t*)output_data)[i*width + j] = uhm_linearGetColor(i,j,realX,realY,realWidth,realHeight,rectangle->px1,rectangle->py1,rectangle->px2,rectangle->py2,rectangle->color,rectangle->color2);
             }else{
-                ((uint32_t*)output_data)[i*width + j] = color;
+                ((uint32_t*)output_data)[i*width + j] = rectangle->color;
             }
 
         }
@@ -288,47 +298,54 @@ bool uhm_draw_rectangle(char* data, uint32_t size, uint32_t width, uint32_t heig
     return true;
 }
 
-bool uhm_draw_circle(char* data, uint32_t size, uint32_t width, uint32_t height, uint32_t* cursor, char* output_data, uint8_t opcode){
-    bool error = false;
+struct uhm_circle{
     float x,y,r,px1,py1,px2,py2;
+    uint8_t fillType;
     uint32_t color,color2;
+};
 
-    x = uhm_chopf32(data,size,cursor,&error);
+bool uhm_parse_circle(uhm_circle* circle, char* data, uint32_t size, uint32_t* cursor){
+    bool error = false;
+    circle->x = uhm_chopf32(data,size,cursor,&error);
     if(error) return false;
-    y = uhm_chopf32(data,size,cursor,&error);
+    circle->y = uhm_chopf32(data,size,cursor,&error);
     if(error) return false;
-    r = uhm_chopf32(data,size,cursor,&error);
+    circle->r = uhm_chopf32(data,size,cursor,&error);
     if(error) return false;
-    uint8_t fillType = uhm_chop8(data,size,cursor,&error);
+    circle->fillType = uhm_chop8(data,size,cursor,&error);
     if(error) return false;
         
-    if(fillType == 'F'){
-        color = uhm_chop32(data,size,cursor,&error);
+    if(circle->fillType == 'F'){
+        circle->color = uhm_chop32(data,size,cursor,&error);
         if(error) return false;
     }
-    else if(fillType == 'L'){
-        px1 = uhm_chopf32(data,size,cursor,&error);
+    else if(circle->fillType == 'L'){
+        circle->px1 = uhm_chopf32(data,size,cursor,&error);
         if(error) return false;
-        py1 = uhm_chopf32(data,size,cursor,&error);
+        circle->py1 = uhm_chopf32(data,size,cursor,&error);
         if(error) return false;
-        px2 = uhm_chopf32(data,size,cursor,&error);
+        circle->px2 = uhm_chopf32(data,size,cursor,&error);
         if(error) return false;
-        py2 = uhm_chopf32(data,size,cursor,&error);
+        circle->py2 = uhm_chopf32(data,size,cursor,&error);
         if(error) return false;
 
-        color = uhm_chop32(data,size,cursor,&error);
+        circle->color = uhm_chop32(data,size,cursor,&error);
         if(error) return false;
-        color2 = uhm_chop32(data,size,cursor,&error);
+        circle->color2 = uhm_chop32(data,size,cursor,&error);
         if(error) return false;
     }
     else {
-        UHM_PRINTF("DrawCircle: UNKNOWN FILL TYPE\n");
+        UHM_PRINTF("ParseCircle: UNKNOWN FILL TYPE\n");
         return false;
     }
 
-    int32_t realX = x*width;
-    int32_t realY = y*width;
-    int32_t realR = r*width;
+    return true;
+}
+
+void uhm_draw_circle(uhm_circle* circle, uint32_t width, uint32_t height, char* output_data){
+    int32_t realX = circle->x*width;
+    int32_t realY = circle->y*width;
+    int32_t realR = circle->r*width;
 
     UHM_PRINTF("Drawing circle x: %d y: %d radius: %d\n",realX,realY,realR);
 
@@ -339,31 +356,57 @@ bool uhm_draw_circle(char* data, uint32_t size, uint32_t width, uint32_t height,
             uint32_t y = i - realY;
             uint32_t x = j - realX;
             if(y*y + x*x < realR*realR){
-                if(fillType == 'L'){
-                    ((uint32_t*)output_data)[i*width + j] = uhm_linearGetColor(i,j,realX - realR,realY - realR,realR*2,realR*2,px1,py1,px2,py2,color,color2);
+                if(circle->fillType == 'L'){
+                    ((uint32_t*)output_data)[i*width + j] = uhm_linearGetColor(i,j,realX - realR,realY - realR,realR*2,realR*2,circle->px1,circle->py1,circle->px2,circle->py2,circle->color,circle->color2);
                 }else{
-                    ((uint32_t*)output_data)[i*width + j] = color;
+                    ((uint32_t*)output_data)[i*width + j] = circle->color;
                 }
             }
         }
     }
-    return true;
 }
 
-bool uhm_parse_instruction(char* data, uint32_t size, uint32_t width, uint32_t height, uint32_t* cursor, char* output_data){
+struct uhm_instruction{
+    uint8_t opcode;
+    void* data;
+};
+
+bool uhm_parse_instruction(char* data, uint32_t size, uint32_t width, uint32_t height, uint32_t* cursor, char* output_data, uhm_instruction* instruction){
     bool error = false;
     uint8_t opcode = uhm_chop8(data,size,cursor,&error);
     if(error) return false;
 
+    instruction->opcode = opcode;
+
     if(opcode == 'R'){
-        return uhm_draw_rectangle(data, size, width, height, cursor, output_data, opcode);
+        uhm_rectangle rectangle;
+        if(!uhm_parse_rectangle(&rectangle, data,size,cursor)) return false;
+        instruction->data = UHM_MALLOC(sizeof(uhm_rectangle));
+        *(uhm_rectangle*)(instruction->data) = rectangle;
+        return true;
     }
     else if(opcode == 'C'){
-        return uhm_draw_circle(data, size, width, height, cursor, output_data, opcode);
+        uhm_circle circle;
+        if(!uhm_parse_circle(&circle, data,size,cursor)) return false;
+        instruction->data = UHM_MALLOC(sizeof(uhm_circle));
+        *(uhm_circle*)(instruction->data) = circle;
+        return true;
     }
-    
+
     UHM_PRINTF("Unknown Opcode\n");
     return false;
+};
+
+bool uhm_draw_instruction(char* data, uint32_t size, uint32_t width, uint32_t height, uint32_t* cursor, char* output_data, uhm_instruction* instruction){
+    if(!uhm_parse_instruction(data,size,width,height,cursor,output_data,instruction)) return false;
+
+         if(instruction->opcode == 'R') uhm_draw_rectangle((uhm_rectangle*)instruction->data,width,height,output_data);
+    else if(instruction->opcode == 'C') uhm_draw_circle((uhm_circle*)instruction->data,width,height,output_data);
+    else{
+        UHM_PRINTF("Unknown Opcode\n");
+        return false; 
+    }
+    return true;
 }
 
 char* uhm_encode(char* data, uint32_t size, uint32_t width, uint32_t height){
@@ -394,11 +437,14 @@ char* uhm_encode(char* data, uint32_t size, uint32_t width, uint32_t height){
     if(error) return NULL;
     for(int i = 0; i < width * height; i++) ((uint32_t*)output_data)[i] = backgroundColor;
 
+    uhm_instruction instruction = {0};
     while(cursor < size){
-        if(!uhm_parse_instruction(data,size,width,height,&cursor,output_data)) {
+        if(!uhm_draw_instruction(data,size,width,height,&cursor,output_data, &instruction)) {
             UHM_FREE(output_data);
+            if(instruction.data) UHM_FREE(instruction.data);
             return NULL;
         }
+        if(instruction.data) UHM_FREE(instruction.data);
     }
 
     return output_data;
