@@ -272,9 +272,7 @@ bool uhm_parse_rectangle(uhm_rectangle* rectangle, char* data, uint32_t size, ui
     return true;
 }
 
-bool uhm_draw_rectangle(uhm_rectangle* rectangle,uint32_t width, uint32_t height, char* output_data){
-    bool error = false;
-
+void uhm_draw_rectangle(uhm_rectangle* rectangle,uint32_t width, uint32_t height, char* output_data){
     int32_t realX = rectangle->x*width;
     int32_t realY = rectangle->y*width;
     int32_t realWidth = rectangle->width*width;
@@ -295,7 +293,6 @@ bool uhm_draw_rectangle(uhm_rectangle* rectangle,uint32_t width, uint32_t height
 
         }
     }
-    return true;
 }
 
 struct uhm_circle{
@@ -397,9 +394,7 @@ bool uhm_parse_instruction(char* data, uint32_t size, uint32_t width, uint32_t h
     return false;
 };
 
-bool uhm_draw_instruction(char* data, uint32_t size, uint32_t width, uint32_t height, uint32_t* cursor, char* output_data, uhm_instruction* instruction){
-    if(!uhm_parse_instruction(data,size,width,height,cursor,output_data,instruction)) return false;
-
+bool uhm_draw_instruction(uhm_instruction* instruction, uint32_t width, uint32_t height, char* output_data){
          if(instruction->opcode == 'R') uhm_draw_rectangle((uhm_rectangle*)instruction->data,width,height,output_data);
     else if(instruction->opcode == 'C') uhm_draw_circle((uhm_circle*)instruction->data,width,height,output_data);
     else{
@@ -439,11 +434,18 @@ char* uhm_encode(char* data, uint32_t size, uint32_t width, uint32_t height){
 
     uhm_instruction instruction = {0};
     while(cursor < size){
-        if(!uhm_draw_instruction(data,size,width,height,&cursor,output_data, &instruction)) {
+        if(!uhm_parse_instruction(data,size,width,height,&cursor,output_data,&instruction)) {
             UHM_FREE(output_data);
             if(instruction.data) UHM_FREE(instruction.data);
             return NULL;
         }
+
+        if(!uhm_draw_instruction(&instruction,width,height,output_data)) {
+            UHM_FREE(output_data);
+            if(instruction.data) UHM_FREE(instruction.data);
+            return NULL;
+        }
+        
         if(instruction.data) UHM_FREE(instruction.data);
     }
 
