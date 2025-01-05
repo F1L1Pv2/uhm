@@ -106,6 +106,21 @@ void add_rectangle_filled(std::vector<char>& vec, float x, float y, float w, flo
     add_color(vec,color);
 }
 
+void add_rectangle_linearGradient(std::vector<char>& vec, float x, float y, float w, float h, float px1, float py1, float px2, float py2, uint32_t color1, uint32_t color2){
+    add_u8(vec,'R');
+    add_f32(vec,x);
+    add_f32(vec,y);
+    add_f32(vec,w);
+    add_f32(vec,h);
+    add_u8(vec,'L');
+    add_f32(vec,px1);
+    add_f32(vec,py1);
+    add_f32(vec,px2);
+    add_f32(vec,py2);
+    add_color(vec,color1);
+    add_color(vec,color2);
+}
+
 void add_circle_filled(std::vector<char>& vec, float x, float y, float r, uint32_t color){
     add_u8(vec,'C');
     add_f32(vec,x);
@@ -113,6 +128,20 @@ void add_circle_filled(std::vector<char>& vec, float x, float y, float r, uint32
     add_f32(vec,r);
     add_u8(vec,'F');
     add_color(vec,color);
+}
+
+void add_circle_linearGradient(std::vector<char>& vec, float x, float y, float r, float px1, float py1, float px2, float py2, uint32_t color1, uint32_t color2){
+    add_u8(vec,'C');
+    add_f32(vec,x);
+    add_f32(vec,y);
+    add_f32(vec,r);
+    add_u8(vec,'L');
+    add_f32(vec,px1);
+    add_f32(vec,py1);
+    add_f32(vec,px2);
+    add_f32(vec,py2);
+    add_color(vec,color1);
+    add_color(vec,color2);
 }
 
 void add_boilerplate(std::vector<char>& vec, uint32_t backgroundColor){
@@ -129,8 +158,17 @@ int main(){
     add_boilerplate(uhm_tester, 0xFF181818);
     add_rectangle_filled(uhm_tester,0.25,0.5,0.1,0.3,0xFFFF0000);
 
-    add_circle_filled(uhm_tester,0.5,0.5,0.3,0xFF00FF00);
+    add_circle_filled(uhm_tester,0.25,0.25,0.3,0xFF00FF00);
     add_rectangle_filled(uhm_tester,0.75,0.5,0.1,0.3,0xFFFF0000);
+
+    add_rectangle_linearGradient(uhm_tester,0.75,0.75,0.1,0.1,0.0,0.0,1.0,1.0,0xFFFF00FF,0xFF00FF00);
+    add_circle_linearGradient(
+        uhm_tester,
+        0.5,0.5,0.3,
+        0.5,0.0,
+        0.5,1.0,
+        0xFFFF00FF,0xFF00FFFF
+    );
 
     char* data = uhm_encode(uhm_tester.data(),uhm_tester.size(),width,height);
     stbi_write_png("output.png",width,height,4,data,width*4);
