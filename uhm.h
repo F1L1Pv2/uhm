@@ -16,6 +16,7 @@
 #include <math.h>
 #include <stdint.h>
 #include <stdbool.h>
+#include <assert.h>
 
 /*
     This function takes in data inside uhm's format size for this data also dimensions for output image and creates bitmap with 4 channels
@@ -37,7 +38,7 @@ char* uhm_encode(char* data, uint32_t size, uint32_t width, uint32_t height);
 
 #ifndef __cplusplus
 #   ifndef decltype
-#      define decltype(v)
+#      define decltype(v) void*
 #   endif
 #endif
 
