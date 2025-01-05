@@ -28,6 +28,27 @@ char* uhm_encode(char* data, uint32_t size, uint32_t width, uint32_t height);
 #define UHM_FREE(p)           free(p)
 #endif
 
+#ifndef __cplusplus
+#define static_cast<decltype((xs)->items)>
+#endif
+
+#define uhm_append(xs, x)                                                                 \
+    do {                                                                                  \
+        if ((xs)->count >= (xs)->capacity) {                                              \
+            if ((xs)->capacity == 0) (xs)->capacity = 256;                                \
+            else (xs)->capacity *= 2;                                                     \
+            (xs)->items = static_cast<decltype((xs)->items)>(                             \
+                UHM_REALLOC((xs)->items, (xs)->capacity * sizeof(*(xs)->items))           \
+            );                                                                            \
+        }                                                                                 \
+                                                                                          \
+        (xs)->items[(xs)->count++] = (x);                                                 \
+    } while (0)
+
+#ifndef __cplusplus
+#undef static_cast<decltype((xs)->items)>
+#endif
+
 #ifndef UHM_NO_STDIO
 #include <stdio.h>
 
@@ -54,7 +75,7 @@ char uhm_peek(char* data, uint32_t size, uint32_t cursor, bool* error){
 }
 
 uint32_t uhm_chop8(char* data, uint32_t size, uint32_t* cursor, bool* error){
-    if(*cursor + 2 > size){
+    if(*cursor + 1 > size){
         IF_ERR {
             *error = true;
             return 0;
@@ -272,9 +293,9 @@ bool uhm_parse_rectangle(uhm_rectangle* rectangle, char* data, uint32_t size, ui
     return true;
 }
 
-void uhm_draw_rectangle(uhm_rectangle* rectangle,uint32_t width, uint32_t height, char* output_data){
-    int32_t realX = rectangle->x*width;
-    int32_t realY = rectangle->y*width;
+void uhm_draw_rectangle(uhm_rectangle* rectangle,uint32_t width, uint32_t height, char* output_data, float gx, float gy){
+    int32_t realX = (rectangle->x+gx)*width;
+    int32_t realY = (rectangle->y+gy)*width;
     int32_t realWidth = rectangle->width*width;
     int32_t realHeight = rectangle->height*width;
 
@@ -339,9 +360,9 @@ bool uhm_parse_circle(uhm_circle* circle, char* data, uint32_t size, uint32_t* c
     return true;
 }
 
-void uhm_draw_circle(uhm_circle* circle, uint32_t width, uint32_t height, char* output_data){
-    int32_t realX = circle->x*width;
-    int32_t realY = circle->y*width;
+void uhm_draw_circle(uhm_circle* circle, uint32_t width, uint32_t height, char* output_data, float gx, float gy){
+    int32_t realX = (circle->x+gx)*width;
+    int32_t realY = (circle->y+gy)*width;
     int32_t realR = circle->r*width;
 
     UHM_PRINTF("Drawing circle x: %d y: %d radius: %d\n",realX,realY,realR);
@@ -368,7 +389,66 @@ struct uhm_instruction{
     void* data;
 };
 
-bool uhm_parse_instruction(char* data, uint32_t size, uint32_t width, uint32_t height, uint32_t* cursor, char* output_data, uhm_instruction* instruction){
+bool uhm_parse_instruction(char* data, uint32_t size, uint32_t* cursor, uhm_instruction* instruction);
+bool uhm_draw_instruction(uhm_instruction* instruction, uint32_t width, uint32_t height, char* output_data, float gx, float gy);
+
+typedef struct {
+    uhm_instruction *items;
+    size_t           count;
+    size_t           capacity;
+} uhm_instructions;
+
+struct uhm_tiledPattern{
+    float ox,oy;
+    uint16_t rows, cols;
+    uhm_instructions instructions;
+};
+
+bool uhm_parse_tiledPattern(uhm_tiledPattern* tiledPattern, char* data, uint32_t size, uint32_t* cursor){
+    bool error = false;
+    tiledPattern->ox = uhm_chopf32(data,size,cursor,&error);
+    if(error) return false;
+    tiledPattern->oy = uhm_chopf32(data,size,cursor,&error);
+    if(error) return false;
+    tiledPattern->rows = uhm_chop16(data,size,cursor,&error);
+    if(error) return false;
+    tiledPattern->cols = uhm_chop16(data,size,cursor,&error);
+    if(error) return false;
+    
+    tiledPattern->instructions.capacity = 0;
+    tiledPattern->instructions.count = 0;
+    tiledPattern->instructions.items = 0;
+
+    while(true){
+        if(*cursor == size){
+            UHM_PRINTF("end clause wasn't found\n");
+            return false;
+        }
+        uhm_instruction instruction = {0};
+        if(!uhm_parse_instruction(data,size,cursor,&instruction)){
+            if(instruction.data) UHM_FREE(instruction.data);
+            return false;
+        }
+
+        if(instruction.opcode == 'E') break;
+
+        uhm_append(&tiledPattern->instructions,instruction);
+    }
+
+    return true;
+}
+
+void uhm_draw_tiledPattern(uhm_tiledPattern* tiledPattern, uint32_t width, uint32_t height, char* output_data, float gx, float gy){
+    for(int i = 0; i < tiledPattern->rows; i++){
+        for(int j = 0; j < tiledPattern->cols; j++){
+            for(int index = 0; index < tiledPattern->instructions.count; index++){
+                uhm_draw_instruction(&tiledPattern->instructions.items[index],width,height,output_data,tiledPattern->ox*j + gx,tiledPattern->oy*i + gy);
+            }
+        }
+    }
+}
+
+bool uhm_parse_instruction(char* data, uint32_t size, uint32_t* cursor, uhm_instruction* instruction){
     bool error = false;
     uint8_t opcode = uhm_chop8(data,size,cursor,&error);
     if(error) return false;
@@ -389,14 +469,28 @@ bool uhm_parse_instruction(char* data, uint32_t size, uint32_t width, uint32_t h
         *(uhm_circle*)(instruction->data) = circle;
         return true;
     }
+    else if(opcode == 'T'){
+        uhm_tiledPattern tiledPattern;
+        if(!uhm_parse_tiledPattern(&tiledPattern, data,size,cursor)) {
+            if(tiledPattern.instructions.items != NULL) UHM_FREE(tiledPattern.instructions.items);
+            return false;
+        }
+        instruction->data = UHM_MALLOC(sizeof(uhm_tiledPattern));
+        *(uhm_tiledPattern*)(instruction->data) = tiledPattern;
+        return true;
+    }
+    else if(opcode == 'E'){
+        return true;
+    }
 
     UHM_PRINTF("Unknown Opcode\n");
     return false;
 };
 
-bool uhm_draw_instruction(uhm_instruction* instruction, uint32_t width, uint32_t height, char* output_data){
-         if(instruction->opcode == 'R') uhm_draw_rectangle((uhm_rectangle*)instruction->data,width,height,output_data);
-    else if(instruction->opcode == 'C') uhm_draw_circle((uhm_circle*)instruction->data,width,height,output_data);
+bool uhm_draw_instruction(uhm_instruction* instruction, uint32_t width, uint32_t height, char* output_data, float gx, float gy){
+         if(instruction->opcode == 'R') uhm_draw_rectangle((uhm_rectangle*)instruction->data,width,height,output_data, gx, gy);
+    else if(instruction->opcode == 'C') uhm_draw_circle((uhm_circle*)instruction->data,width,height,output_data, gx, gy);
+    else if(instruction->opcode == 'T') uhm_draw_tiledPattern((uhm_tiledPattern*)instruction->data,width,height,output_data, gx, gy);
     else{
         UHM_PRINTF("Unknown Opcode\n");
         return false; 
@@ -434,18 +528,20 @@ char* uhm_encode(char* data, uint32_t size, uint32_t width, uint32_t height){
 
     uhm_instruction instruction = {0};
     while(cursor < size){
-        if(!uhm_parse_instruction(data,size,width,height,&cursor,output_data,&instruction)) {
+        if(!uhm_parse_instruction(data,size,&cursor,&instruction)) {
             UHM_FREE(output_data);
             if(instruction.data) UHM_FREE(instruction.data);
+            if(instruction.opcode == 'T') UHM_FREE(((uhm_tiledPattern*)instruction.data)->instructions.items);
             return NULL;
         }
 
-        if(!uhm_draw_instruction(&instruction,width,height,output_data)) {
+        if(!uhm_draw_instruction(&instruction,width,height,output_data, 0, 0)) {
             UHM_FREE(output_data);
             if(instruction.data) UHM_FREE(instruction.data);
+            if(instruction.opcode == 'T') UHM_FREE(((uhm_tiledPattern*)instruction.data)->instructions.items);
             return NULL;
         }
-        
+
         if(instruction.data) UHM_FREE(instruction.data);
     }
 
