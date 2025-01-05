@@ -391,6 +391,7 @@ void uhm_draw_circle(uhm_circle* circle, uint32_t width, uint32_t height, char* 
 typedef struct{
     uint8_t opcode;
     void* data;
+    bool skip_draw;
 } uhm_instruction;
 
 bool uhm_parse_instruction(char* data, uint32_t size, uint32_t* cursor, uhm_instruction* instruction);
@@ -446,10 +447,76 @@ void uhm_draw_tiledPattern(uhm_tiledPattern* tiledPattern, uint32_t width, uint3
     for(int i = 0; i < tiledPattern->rows; i++){
         for(int j = 0; j < tiledPattern->cols; j++){
             for(int index = 0; index < tiledPattern->instructions.count; index++){
+                if(tiledPattern->instructions.items[index].skip_draw) continue;
                 uhm_draw_instruction(&tiledPattern->instructions.items[index],width,height,output_data,tiledPattern->ox*j + gx,tiledPattern->oy*i + gy);
             }
         }
     }
+}
+
+typedef struct {
+    uint16_t patternID;
+    uhm_instructions instructions;
+} uhm_pattern;
+
+typedef struct {
+    uint16_t patternID;
+    float x;
+    float y;
+} uhm_place_pattern;
+
+typedef struct {
+    uhm_pattern* items;
+    size_t       count;
+    size_t       capacity;
+} uhm_patterns;
+
+uhm_patterns patterns = {0};
+
+bool uhm_parse_pattern(char* data, uint32_t size, uint32_t* cursor, uhm_instruction* instruction){
+    bool error = false;
+    uint8_t mode = uhm_chop8(data,size,cursor, &error);
+    if(error) return false;
+    if(mode == 'R'){
+        instruction->skip_draw = true;
+    }
+    uint16_t patternID = uhm_chop16(data,size,cursor,&error);
+    if(error) return false;
+    if(mode == 'P'){
+        float x = uhm_chopf32(data,size,cursor,&error);
+        if(error) return false;
+        float y = uhm_chopf32(data,size,cursor,&error);
+        if(error) return false;
+        instruction->data = UHM_MALLOC(sizeof(uhm_place_pattern));
+        ((uhm_place_pattern*)(instruction->data))->patternID = patternID;
+        ((uhm_place_pattern*)(instruction->data))->x = x;
+        ((uhm_place_pattern*)(instruction->data))->y = y;
+        return true;
+    }
+    else if(mode == 'R'){
+        uhm_pattern pattern = {0};
+        pattern.patternID = patternID;
+
+        while(true){
+            if(*cursor == size){
+                UHM_PRINTF("end clause wasn't found\n");
+                return false;
+            }
+            uhm_instruction instruction = {0};
+            if(!uhm_parse_instruction(data,size,cursor,&instruction)){
+                if(instruction.data) UHM_FREE(instruction.data);
+                return false;
+            }
+
+            if(instruction.opcode == 'E') break;
+
+            uhm_append(&pattern.instructions,instruction);
+        }
+
+        uhm_append(&patterns, pattern);
+        return true;
+    }
+    return false;
 }
 
 bool uhm_parse_instruction(char* data, uint32_t size, uint32_t* cursor, uhm_instruction* instruction){
@@ -458,6 +525,7 @@ bool uhm_parse_instruction(char* data, uint32_t size, uint32_t* cursor, uhm_inst
     if(error) return false;
 
     instruction->opcode = opcode;
+    instruction->skip_draw = false;
 
     if(opcode == 'R'){
         uhm_rectangle rectangle;
@@ -482,21 +550,42 @@ bool uhm_parse_instruction(char* data, uint32_t size, uint32_t* cursor, uhm_inst
         instruction->data = UHM_MALLOC(sizeof(uhm_tiledPattern));
         *(uhm_tiledPattern*)(instruction->data) = tiledPattern;
         return true;
+    }else if(opcode == 'P'){
+        return uhm_parse_pattern(data,size,cursor,instruction);
     }
     else if(opcode == 'E'){
         return true;
     }
 
-    UHM_PRINTF("Unknown Opcode\n");
+    UHM_PRINTF("Parse: Unknown Opcode: %c\n", opcode);
     return false;
 };
+
+void uhm_draw_placePattern(uhm_place_pattern* patternDesc, uint32_t width, uint32_t height, char* output_data, float gx, float gy){
+    uhm_pattern* pattern = NULL;
+    for(int i = 0; i < patterns.count; i++){
+        if(patterns.items[i].patternID == patternDesc->patternID){
+            pattern = &patterns.items[i];
+            break;
+        }
+    }
+    if(pattern == NULL){
+        UHM_PRINTF("Unknown patternID %d\n",patternDesc->patternID);
+        return;
+    }
+    for(int i = 0; i < pattern->instructions.count; i++){
+        if(pattern->instructions.items[i].skip_draw) continue;
+        uhm_draw_instruction(&pattern->instructions.items[i],width,height,output_data,patternDesc->x + gx,patternDesc->y + gy);
+    }
+}
 
 bool uhm_draw_instruction(uhm_instruction* instruction, uint32_t width, uint32_t height, char* output_data, float gx, float gy){
          if(instruction->opcode == 'R') uhm_draw_rectangle((uhm_rectangle*)instruction->data,width,height,output_data, gx, gy);
     else if(instruction->opcode == 'C') uhm_draw_circle((uhm_circle*)instruction->data,width,height,output_data, gx, gy);
     else if(instruction->opcode == 'T') uhm_draw_tiledPattern((uhm_tiledPattern*)instruction->data,width,height,output_data, gx, gy);
+    else if(instruction->opcode == 'P') uhm_draw_placePattern((uhm_place_pattern*)instruction->data,width,height,output_data, gx, gy);
     else{
-        UHM_PRINTF("Unknown Opcode\n");
+        UHM_PRINTF("Draw: Unknown Opcode %c\n", instruction->opcode);
         return false; 
     }
     return true;
@@ -506,6 +595,14 @@ char* uhm_encode(char* data, uint32_t size, uint32_t width, uint32_t height){
     UHM_PRINTF("Got %u bytes\n", size);
     char* output_data = (char*)UHM_MALLOC(width*height*4);
     uint32_t cursor = 0;
+
+    if(patterns.count > 0){
+        for(int i = 0; i < patterns.count; i++){
+            if(patterns.items[i].instructions.items != NULL) UHM_FREE(patterns.items[i].instructions.items);
+        }
+    }
+
+    patterns.count = 0;
 
     if(!uhm_expect(data,size,cursor,'U')) {
         UHM_FREE(output_data);
@@ -539,11 +636,13 @@ char* uhm_encode(char* data, uint32_t size, uint32_t width, uint32_t height){
             return NULL;
         }
 
-        if(!uhm_draw_instruction(&instruction,width,height,output_data, 0, 0)) {
-            UHM_FREE(output_data);
-            if(instruction.data) UHM_FREE(instruction.data);
-            if(instruction.opcode == 'T') UHM_FREE(((uhm_tiledPattern*)instruction.data)->instructions.items);
-            return NULL;
+        if(!instruction.skip_draw){
+            if(!uhm_draw_instruction(&instruction,width,height,output_data, 0, 0)) {
+                UHM_FREE(output_data);
+                if(instruction.data) UHM_FREE(instruction.data);
+                if(instruction.opcode == 'T') UHM_FREE(((uhm_tiledPattern*)instruction.data)->instructions.items);
+                return NULL;
+            }
         }
 
         if(instruction.data) UHM_FREE(instruction.data);

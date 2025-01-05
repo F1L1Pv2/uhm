@@ -159,8 +159,22 @@ void add_tiledPattern_startClause(std::vector<char>& vec, float ox, float oy, ui
     add_u16(vec,cols);
 }
 
+void add_definePattern_startClause(std::vector<char>& vec, uint16_t patternID){
+    add_u8(vec, 'P');
+    add_u8(vec, 'R');
+    add_u16(vec, patternID);
+}
+
 void add_endClause(std::vector<char>& vec){
     add_u8(vec,'E');
+}
+
+void add_placePattern(std::vector<char>& vec, uint16_t patternID, float x, float y){
+    add_u8(vec, 'P');
+    add_u8(vec, 'P');
+    add_u16(vec, patternID);
+    add_f32(vec, x);
+    add_f32(vec, y);
 }
 
 int main(){
@@ -168,13 +182,13 @@ int main(){
     uint32_t height = 512;
     std::vector<char> uhm_tester = {};
     add_boilerplate(uhm_tester, 0xFF181818);
-    // add_rectangle_filled(uhm_tester,0.25,0.5,0.1,0.3,0xFFFF0000);
 
+    
+    // // Example 1 - pure shapes
+    // add_rectangle_filled(uhm_tester,0.25,0.5,0.1,0.3,0xFFFF0000);
     // add_circle_filled(uhm_tester,0.25,0.25,0.3,0xFF00FF00);
     // add_rectangle_filled(uhm_tester,0.75,0.5,0.1,0.3,0xFFFF0000);
-
     // add_rectangle_linearGradient(uhm_tester,0.75,0.75,0.1,0.1,0.0,0.0,1.0,1.0,0xFFFF00FF,0xFF00FF00);
-    
     // add_circle_linearGradient(
     //     uhm_tester,
     //     0.5,0.5,0.3,
@@ -183,23 +197,28 @@ int main(){
     //     0xFFFF00FF,0xFF00FFFF
     // );
 
-    add_tiledPattern_startClause(uhm_tester,0.5,0.5,2,2);
+    // // Example 2 - tiled patterns
+    // add_tiledPattern_startClause(uhm_tester,0.5,0.5,2,2);
+    //     add_tiledPattern_startClause(uhm_tester,0.25,0.25,2,2);
+    //         add_rectangle_linearGradient(uhm_tester,0,0,0.1,0.1,0.0,0.0,1.0,1.0,0xFFFF00FF,0xFF00FF00);
+    //     add_endClause(uhm_tester);
+    //     add_circle_linearGradient(
+    //         uhm_tester,
+    //         0.25/2+0.1/2,0.25/2+0.1/2,0.1,
+    //         0.5,0.0,
+    //         0.5,1.0,
+    //         0xFFFF00FF,0xFF00FFFF
+    //     );
+    // add_endClause(uhm_tester);
 
-        add_tiledPattern_startClause(uhm_tester,0.25,0.25,2,2);
-
-            add_rectangle_linearGradient(uhm_tester,0,0,0.1,0.1,0.0,0.0,1.0,1.0,0xFFFF00FF,0xFF00FF00);
-
-        add_endClause(uhm_tester);
-
-        add_circle_linearGradient(
-            uhm_tester,
-            0.25/2+0.1/2,0.25/2+0.1/2,0.1,
-            0.5,0.0,
-            0.5,1.0,
-            0xFFFF00FF,0xFF00FFFF
-        );
-
+    // Example 3 - patterns
+    add_definePattern_startClause(uhm_tester,69);
+        add_rectangle_linearGradient(uhm_tester,0,0,0.1,0.1,0.0,0.0,1.0,1.0,0xFFFFFF00,0xFF00FF00);
+        add_circle_linearGradient(uhm_tester,0.05,0.05,0.05,0.5,0.0,0.5,1.0,0xFFFF00FF,0xFF00FFFF);
     add_endClause(uhm_tester);
+    add_tiledPattern_startClause(uhm_tester,0.5,0.5,2,2);
+        add_placePattern(uhm_tester,69,0.2,0.2);
+    add_endClause(uhm_tester);   
 
     char* data = uhm_encode(uhm_tester.data(),uhm_tester.size(),width,height);
     if(data == nullptr){
