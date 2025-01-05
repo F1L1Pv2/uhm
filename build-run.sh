@@ -1,4 +1,4 @@
 set -xe
 
 sh build.sh
-./main.exe
+./example.exe

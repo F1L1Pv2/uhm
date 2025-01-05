@@ -1,2 +1,4 @@
 *.exe
 /*.uhm
+*.ilk
+*.pdb

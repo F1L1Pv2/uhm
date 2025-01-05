@@ -1,3 +1,3 @@
 set -xe
 
-clang -o main.exe src/main.cpp
+clang -g -o example.exe examples/generatingImage.cpp -I"."
