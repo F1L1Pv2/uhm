@@ -15,6 +15,7 @@
 #include <string.h>
 #include <math.h>
 #include <stdint.h>
+#include <stdbool.h>
 
 /*
     This function takes in data inside uhm's format size for this data also dimensions for output image and creates bitmap with 4 channels
@@ -28,26 +29,28 @@ char* uhm_encode(char* data, uint32_t size, uint32_t width, uint32_t height);
 #define UHM_FREE(p)           free(p)
 #endif
 
-#ifndef __cplusplus
-#define static_cast<decltype((xs)->items)>
+#define UHM_ASSERT assert
+
+#ifndef UHM_DA_INIT_CAP
+#define UHM_DA_INIT_CAP 256
 #endif
 
-#define uhm_append(xs, x)                                                                 \
-    do {                                                                                  \
-        if ((xs)->count >= (xs)->capacity) {                                              \
-            if ((xs)->capacity == 0) (xs)->capacity = 256;                                \
-            else (xs)->capacity *= 2;                                                     \
-            (xs)->items = static_cast<decltype((xs)->items)>(                             \
-                UHM_REALLOC((xs)->items, (xs)->capacity * sizeof(*(xs)->items))           \
-            );                                                                            \
-        }                                                                                 \
-                                                                                          \
-        (xs)->items[(xs)->count++] = (x);                                                 \
+#ifndef __cplusplus
+#   ifndef decltype
+#      define decltype(v)
+#   endif
+#endif
+
+#define uhm_append(da, item)                                                             \
+    do {                                                                                 \
+        if ((da)->count >= (da)->capacity) {                                             \
+            (da)->capacity = (da)->capacity == 0 ? UHM_DA_INIT_CAP : (da)->capacity*2;   \
+            (da)->items = (decltype((da)->items))UHM_REALLOC((da)->items, (da)->capacity*sizeof(*(da)->items)); \
+            UHM_ASSERT((da)->items != NULL && "Buy more RAM lol");                       \
+        }                                                                                \
+                                                                                         \
+        (da)->items[(da)->count++] = (item);                                             \
     } while (0)
-
-#ifndef __cplusplus
-#undef static_cast<decltype((xs)->items)>
-#endif
 
 #ifndef UHM_NO_STDIO
 #include <stdio.h>
@@ -247,11 +250,11 @@ uint32_t uhm_linearGetColor(int32_t px, int32_t py, int32_t bbx, int32_t bby, ui
     return uhm_lerpColors(color1,color2, T);
 }
 
-struct uhm_rectangle{
+typedef struct {
     float x,y,width,height,px1,py1,px2,py2;
     uint32_t color,color2;
     uint8_t fillType;
-};
+} uhm_rectangle;
 
 bool uhm_parse_rectangle(uhm_rectangle* rectangle, char* data, uint32_t size, uint32_t* cursor){
     bool error = false;
@@ -316,11 +319,11 @@ void uhm_draw_rectangle(uhm_rectangle* rectangle,uint32_t width, uint32_t height
     }
 }
 
-struct uhm_circle{
+typedef struct {
     float x,y,r,px1,py1,px2,py2;
     uint8_t fillType;
     uint32_t color,color2;
-};
+} uhm_circle;
 
 bool uhm_parse_circle(uhm_circle* circle, char* data, uint32_t size, uint32_t* cursor){
     bool error = false;
@@ -384,10 +387,10 @@ void uhm_draw_circle(uhm_circle* circle, uint32_t width, uint32_t height, char* 
     }
 }
 
-struct uhm_instruction{
+typedef struct{
     uint8_t opcode;
     void* data;
-};
+} uhm_instruction;
 
 bool uhm_parse_instruction(char* data, uint32_t size, uint32_t* cursor, uhm_instruction* instruction);
 bool uhm_draw_instruction(uhm_instruction* instruction, uint32_t width, uint32_t height, char* output_data, float gx, float gy);
@@ -398,11 +401,11 @@ typedef struct {
     size_t           capacity;
 } uhm_instructions;
 
-struct uhm_tiledPattern{
+typedef struct{
     float ox,oy;
     uint16_t rows, cols;
     uhm_instructions instructions;
-};
+} uhm_tiledPattern;
 
 bool uhm_parse_tiledPattern(uhm_tiledPattern* tiledPattern, char* data, uint32_t size, uint32_t* cursor){
     bool error = false;
