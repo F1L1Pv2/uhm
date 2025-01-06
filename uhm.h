@@ -42,15 +42,15 @@ char* uhm_encode(char* data, uint32_t size, uint32_t width, uint32_t height);
 #   endif
 #endif
 
-#define uhm_append(da, item)                                                             \
-    do {                                                                                 \
-        if ((da)->count >= (da)->capacity) {                                             \
-            (da)->capacity = (da)->capacity == 0 ? UHM_DA_INIT_CAP : (da)->capacity*2;   \
+#define uhm_append(da, item)                                                                                    \
+    do {                                                                                                        \
+        if ((da)->count >= (da)->capacity) {                                                                    \
+            (da)->capacity = (da)->capacity == 0 ? UHM_DA_INIT_CAP : (da)->capacity*2;                          \
             (da)->items = (decltype((da)->items))UHM_REALLOC((da)->items, (da)->capacity*sizeof(*(da)->items)); \
-            UHM_ASSERT((da)->items != NULL && "Buy more RAM lol");                       \
-        }                                                                                \
-                                                                                         \
-        (da)->items[(da)->count++] = (item);                                             \
+            UHM_ASSERT((da)->items != NULL && "Buy more RAM lol");                                              \
+        }                                                                                                       \
+                                                                                                                \
+        (da)->items[(da)->count++] = (item);                                                                    \
     } while (0)
 
 #ifndef UHM_NO_STDIO
@@ -63,78 +63,41 @@ char* uhm_encode(char* data, uint32_t size, uint32_t width, uint32_t height);
 
 #ifdef UHM_IMPLEMENTATION
 
-#define IF_ERR if(error != NULL)
-
-#define IF_ERR2 if(error != NULL && *error)
-
-char uhm_peek(char* data, uint32_t size, uint32_t cursor, bool* error){
-    if(cursor + 1 > size){
-        IF_ERR {
-            *error = true;
-            return 0;
-        }
-    }
-
-    return *(data+cursor);
+int uhm_peek(char* data, uint32_t size, uint32_t cursor, char* out){
+    if(cursor + 1 > size) return -1;
+    *out = *(data+cursor);
+    return 0;
 }
 
-uint32_t uhm_chop8(char* data, uint32_t size, uint32_t* cursor, bool* error){
-    if(*cursor + 1 > size){
-        IF_ERR {
-            *error = true;
-            return 0;
-        }
-    }
-
-    uint8_t ch = (uint8_t)*(data+*cursor + 0);
+int uhm_chop8(char* data,uint32_t size, uint32_t* cursor, uint8_t* out){
+    if(*cursor + 1 > size) return -1;
+    *out = (uint8_t)*(data+*cursor + 0);
     *cursor += 1;
-
-    return ch;
+    return 0;
 }
 
-uint32_t uhm_chop16(char* data, uint32_t size, uint32_t* cursor, bool* error){
-    if(*cursor + 2 > size){
-        IF_ERR {
-            *error = true;
-            return 0;
-        }
-    }
-
+int uhm_chop16(char* data,uint32_t size, uint32_t* cursor, uint16_t* out){
+    if(*cursor + 2 > size) return -1;
     uint16_t p1 = (uint16_t)((uint8_t)*(data+*cursor + 0));
     uint16_t p2 = (uint16_t)((uint8_t)*(data+*cursor + 1));
-
     *cursor += 2;
-
-    uint16_t out = (((uint16_t)p1) << 0 * 8) | (((uint16_t)p2) << 1 * 8);
-    return out;
+    *out = (((uint16_t)p1) << 0 * 8) | (((uint16_t)p2) << 1 * 8);
+    return 0;
 }
 
-uint32_t uhm_chop32(char* data, uint32_t size, uint32_t* cursor, bool* error){
-    if(*cursor + 4 > size){
-        IF_ERR {
-            *error = true;
-            return 0;
-        }
-    }
-
+int uhm_chop32(char* data,uint32_t size, uint32_t* cursor, uint32_t* out){
+    if(*cursor + 4 > size) return -1;
     uint32_t p1 = (uint32_t)((uint8_t)*(data+*cursor + 0));
     uint32_t p2 = (uint32_t)((uint8_t)*(data+*cursor + 1));
     uint32_t p3 = (uint32_t)((uint8_t)*(data+*cursor + 2));
     uint32_t p4 = (uint32_t)((uint8_t)*(data+*cursor + 3));
-
     *cursor += 4;
-
-    uint32_t out = (((uint32_t)p1) << 0 * 8) | (((uint32_t)p2) << 1 * 8) | (((uint32_t)p3) << 2 * 8) | (((uint32_t)p4) << 3 * 8);
-    return out;
+    *out = (((uint32_t)p1) << 0 * 8) | (((uint32_t)p2) << 1 * 8) | (((uint32_t)p3) << 2 * 8) | (((uint32_t)p4) << 3 * 8);
+    return 0;
 }
 
-uint64_t uhm_chop64(char* data, uint32_t size, uint32_t* cursor, bool* error){
-    if(*cursor + 8 > size){
-        IF_ERR {
-            *error = true;
-            return 0;
-        }
-    }
+int uhm_chop64(char* data,uint32_t size, uint32_t* cursor, uint64_t* out){
+    if(*cursor + 8 > size) return -1;
 
     uint64_t p1 = (uint64_t)((uint8_t)*(data+*cursor + 0));
     uint64_t p2 = (uint64_t)((uint8_t)*(data+*cursor + 1));
@@ -147,17 +110,12 @@ uint64_t uhm_chop64(char* data, uint32_t size, uint32_t* cursor, bool* error){
 
     *cursor += 8;
 
-    uint64_t out = (((uint64_t)p1) << 0 * 8) | (((uint64_t)p2) << 1 * 8) | (((uint64_t)p3) << 2 * 8) | (((uint64_t)p4) << 3 * 8) |  (((uint64_t)p1) << 4 * 8) | (((uint64_t)p2) << 5 * 8) | (((uint64_t)p3) << 6 * 8) | (((uint64_t)p4) << 7 * 8);
-    return out;
+    *out = (((uint64_t)p1) << 0 * 8) | (((uint64_t)p2) << 1 * 8) | (((uint64_t)p3) << 2 * 8) | (((uint64_t)p4) << 3 * 8) |  (((uint64_t)p1) << 4 * 8) | (((uint64_t)p2) << 5 * 8) | (((uint64_t)p3) << 6 * 8) | (((uint64_t)p4) << 7 * 8);
+    return 0;
 }
 
-float uhm_chopf32(char* data, uint32_t size, uint32_t* cursor, bool* error){
-    if(*cursor + 4 > size){
-        IF_ERR {
-            *error = true;
-            return 0;
-        }
-    }
+int uhm_chopf32(char* data,uint32_t size, uint32_t* cursor, float* out){
+    if(*cursor + 4 > size) return -1;
 
     uint32_t p1 = (uint32_t)((uint8_t)*(data+*cursor + 0));
     uint32_t p2 = (uint32_t)((uint8_t)*(data+*cursor + 1));
@@ -165,19 +123,13 @@ float uhm_chopf32(char* data, uint32_t size, uint32_t* cursor, bool* error){
     uint32_t p4 = (uint32_t)((uint8_t)*(data+*cursor + 3));
 
     *cursor += 4;
-
-    uint32_t out = (((uint32_t)p1) << 0 * 8) | (((uint32_t)p2) << 1 * 8) | (((uint32_t)p3) << 2 * 8) | (((uint32_t)p4) << 3 * 8);
-    return *((float*)&out);
+    uint32_t intermediate = (((uint32_t)p1) << 0 * 8) | (((uint32_t)p2) << 1 * 8) | (((uint32_t)p3) << 2 * 8) | (((uint32_t)p4) << 3 * 8);
+    *out = *((float*)&intermediate);
+    return 0;
 }
 
-double uhm_chopf64(char* data, uint32_t size, uint32_t* cursor, bool* error){
-    if(*cursor + 8 > size){
-        IF_ERR {
-            *error = true;
-            return 0;
-        }
-    }
-
+int uhm_chopf64(char* data,uint32_t size, uint32_t* cursor, double* out){
+    if(*cursor + 8 > size) return -1;
     uint64_t p1 = (uint64_t)((uint8_t)*(data+*cursor + 0));
     uint64_t p2 = (uint64_t)((uint8_t)*(data+*cursor + 1));
     uint64_t p3 = (uint64_t)((uint8_t)*(data+*cursor + 2));
@@ -189,14 +141,15 @@ double uhm_chopf64(char* data, uint32_t size, uint32_t* cursor, bool* error){
 
     *cursor += 8;
 
-    uint64_t out = (((uint64_t)p1) << 0 * 8) | (((uint64_t)p2) << 1 * 8) | (((uint64_t)p3) << 2 * 8) | (((uint64_t)p4) << 3 * 8) |  (((uint64_t)p1) << 4 * 8) | (((uint64_t)p2) << 5 * 8) | (((uint64_t)p3) << 6 * 8) | (((uint64_t)p4) << 7 * 8);
-    return *((double*)&out);
+    uint32_t intermediate = (((uint64_t)p1) << 0 * 8) | (((uint64_t)p2) << 1 * 8) | (((uint64_t)p3) << 2 * 8) | (((uint64_t)p4) << 3 * 8) |  (((uint64_t)p1) << 4 * 8) | (((uint64_t)p2) << 5 * 8) | (((uint64_t)p3) << 6 * 8) | (((uint64_t)p4) << 7 * 8);
+    *out = *((double*)&intermediate);
+    return 0;
 }
 
-bool uhm_expect(char* data, uint32_t size, uint32_t cursor, char expected){
-    bool error = false;
-    char peeked = uhm_peek(data, size, cursor,&error);
-    if(error) return false;
+int uhm_expect(char* data, uint32_t size, uint32_t cursor, char expected){
+    char peeked;
+    int e;
+    if((e=uhm_peek(data, size, cursor,&peeked))<0) return e;
     return peeked == expected;
 }
 
@@ -289,60 +242,47 @@ typedef struct {
     uint8_t fillType;
 } uhm_rectangle;
 
-bool uhm_parse_rectangle(uhm_rectangle* rectangle, char* data, uint32_t size, uint32_t* cursor){
-    bool error = false;
-    rectangle->x = uhm_chopf32(data,size,cursor,&error);
-    if(error) return false;
-    rectangle->y = uhm_chopf32(data,size,cursor,&error);
-    if(error) return false;
-    rectangle->width = uhm_chopf32(data,size,cursor,&error);
-    if(error) return false;
-    rectangle->height = uhm_chopf32(data,size,cursor,&error);
-    if(error) return false;
-    rectangle->fillType = uhm_chop8(data,size,cursor,&error);
-    if(error) return false;
+int uhm_parse_rectangle(uhm_rectangle* rectangle, char* data, uint32_t size, uint32_t* cursor){
+    int e;
+    if(
+        (e=uhm_chopf32(data,size,cursor,&rectangle->x))<0 ||
+        (e=uhm_chopf32(data,size,cursor,&rectangle->y))<0 ||
+        (e=uhm_chopf32(data,size,cursor,&rectangle->width))<0 ||
+        (e=uhm_chopf32(data,size,cursor,&rectangle->height))<0 ||
+        (e=uhm_chop8(data,size,cursor,&rectangle->fillType))<0
+    ) return e;
         
     if(rectangle->fillType == 'F'){
-        rectangle->color = uhm_chop32(data,size,cursor,&error);
-        if(error) return false;
+        if((e=uhm_chop32(data,size,cursor,&rectangle->color))<0) return e;
     }
     else if(rectangle->fillType == 'L'){
-        rectangle->px1 = uhm_chopf32(data,size,cursor,&error);
-        if(error) return false;
-        rectangle->py1 = uhm_chopf32(data,size,cursor,&error);
-        if(error) return false;
-        rectangle->px2 = uhm_chopf32(data,size,cursor,&error);
-        if(error) return false;
-        rectangle->py2 = uhm_chopf32(data,size,cursor,&error);
-        if(error) return false;
-
-        rectangle->color = uhm_chop32(data,size,cursor,&error);
-        if(error) return false;
-        rectangle->color2 = uhm_chop32(data,size,cursor,&error);
-        if(error) return false;
+        if(
+            (e=uhm_chopf32(data,size,cursor,&rectangle->px1))<0 ||
+            (e=uhm_chopf32(data,size,cursor,&rectangle->py1))<0 ||
+            (e=uhm_chopf32(data,size,cursor,&rectangle->px2))<0 ||
+            (e=uhm_chopf32(data,size,cursor,&rectangle->py2))<0 ||
+            (e=uhm_chop32(data,size,cursor,&rectangle->color))<0 ||
+            (e=uhm_chop32(data,size,cursor,&rectangle->color2))<0
+        ) return e;
     }
     else if(rectangle->fillType == 'C'){
-        rectangle->cx = uhm_chopf32(data,size,cursor,&error);
-        if(error) return false;
-        rectangle->cy = uhm_chopf32(data,size,cursor,&error);
-        if(error) return false;
-        rectangle->radius = uhm_chopf32(data,size,cursor,&error);
-        if(error) return false;
-
-        rectangle->color = uhm_chop32(data,size,cursor,&error);
-        if(error) return false;
-        rectangle->color2 = uhm_chop32(data,size,cursor,&error);
-        if(error) return false;
+        if(
+            (e=uhm_chopf32(data,size,cursor,&rectangle->cx))<0 ||
+            (e=uhm_chopf32(data,size,cursor,&rectangle->cy))<0 ||
+            (e=uhm_chopf32(data,size,cursor,&rectangle->radius))<0 ||
+            (e=uhm_chop32(data,size,cursor,&rectangle->color))<0 ||
+            (e=uhm_chop32(data,size,cursor,&rectangle->color2))<0
+        ) return e;
     }
     else {
         UHM_PRINTF("ParseRectangle: UNKNOWN FILL TYPE\n");
-        return false;
+        return -1;
     }
 
-    return true;
+    return 0;
 }
 
-void uhm_draw_rectangle(uhm_rectangle* rectangle,uint32_t width, uint32_t height, char* output_data, float gx, float gy){
+int uhm_draw_rectangle(uhm_rectangle* rectangle,uint32_t width, uint32_t height, char* output_data, float gx, float gy){
     int32_t realX = (rectangle->x+gx)*width;
     int32_t realY = (rectangle->y+gy)*width;
     int32_t realWidth = rectangle->width*width;
@@ -367,6 +307,8 @@ void uhm_draw_rectangle(uhm_rectangle* rectangle,uint32_t width, uint32_t height
 
         }
     }
+
+    return 0;
 }
 
 typedef struct {
@@ -375,59 +317,47 @@ typedef struct {
     uint32_t color,color2;
 } uhm_circle;
 
-bool uhm_parse_circle(uhm_circle* circle, char* data, uint32_t size, uint32_t* cursor){
-    bool error = false;
-    circle->x = uhm_chopf32(data,size,cursor,&error);
-    if(error) return false;
-    circle->y = uhm_chopf32(data,size,cursor,&error);
-    if(error) return false;
-    circle->r = uhm_chopf32(data,size,cursor,&error);
-    if(error) return false;
-    circle->fillType = uhm_chop8(data,size,cursor,&error);
-    if(error) return false;
+int uhm_parse_circle(uhm_circle* circle, char* data, uint32_t size, uint32_t* cursor){
+    int e;
+    if(
+        (e=uhm_chopf32(data,size,cursor,&circle->x))<0||
+        (e=uhm_chopf32(data,size,cursor,&circle->y))<0||
+        (e=uhm_chopf32(data,size,cursor,&circle->r))<0||
+        (e=uhm_chop8(data,size,cursor,&circle->fillType))<0
+    ) return e;
         
     if(circle->fillType == 'F'){
-        circle->color = uhm_chop32(data,size,cursor,&error);
-        if(error) return false;
+        if((e=uhm_chop32(data,size,cursor,&circle->color))<0) return e;
     }
     else if(circle->fillType == 'L'){
-        circle->px1 = uhm_chopf32(data,size,cursor,&error);
-        if(error) return false;
-        circle->py1 = uhm_chopf32(data,size,cursor,&error);
-        if(error) return false;
-        circle->px2 = uhm_chopf32(data,size,cursor,&error);
-        if(error) return false;
-        circle->py2 = uhm_chopf32(data,size,cursor,&error);
-        if(error) return false;
-
-        circle->color = uhm_chop32(data,size,cursor,&error);
-        if(error) return false;
-        circle->color2 = uhm_chop32(data,size,cursor,&error);
-        if(error) return false;
+        if(
+            (e=uhm_chopf32(data,size,cursor,&circle->px1))<0||
+            (e=uhm_chopf32(data,size,cursor,&circle->py1))<0||
+            (e=uhm_chopf32(data,size,cursor,&circle->px2))<0||
+            (e=uhm_chopf32(data,size,cursor,&circle->py2))<0||
+            (e=uhm_chop32(data,size,cursor,&circle->color))<0||
+            (e=uhm_chop32(data,size,cursor,&circle->color2))<0
+        ) return e;
     }
     else if(circle->fillType == 'C'){
-        circle->cx = uhm_chopf32(data,size,cursor,&error);
-        if(error) return false;
-        circle->cy = uhm_chopf32(data,size,cursor,&error);
-        if(error) return false;
-        circle->radius = uhm_chopf32(data,size,cursor,&error);
-        if(error) return false;
-
-        circle->color = uhm_chop32(data,size,cursor,&error);
-        if(error) return false;
-        circle->color2 = uhm_chop32(data,size,cursor,&error);
-        if(error) return false;
+        if(
+            (e=uhm_chopf32(data,size,cursor,&circle->cx))<0||
+            (e=uhm_chopf32(data,size,cursor,&circle->cy))<0||
+            (e=uhm_chopf32(data,size,cursor,&circle->radius))<0||
+            (e=uhm_chop32(data,size,cursor,&circle->color))<0||
+            (e=uhm_chop32(data,size,cursor,&circle->color2))<0
+        ) return e;
     }
 
     else {
         UHM_PRINTF("ParseCircle: UNKNOWN FILL TYPE\n");
-        return false;
+        return -1;
     }
 
-    return true;
+    return 0;
 }
 
-void uhm_draw_circle(uhm_circle* circle, uint32_t width, uint32_t height, char* output_data, float gx, float gy){
+int uhm_draw_circle(uhm_circle* circle, uint32_t width, uint32_t height, char* output_data, float gx, float gy){
     int32_t realX = (circle->x+gx)*width;
     int32_t realY = (circle->y+gy)*width;
     int32_t realR = circle->r*width;
@@ -453,6 +383,8 @@ void uhm_draw_circle(uhm_circle* circle, uint32_t width, uint32_t height, char* 
             }
         }
     }
+
+    return 0;
 }
 
 typedef struct {
@@ -461,62 +393,49 @@ typedef struct {
     uint32_t color,color2;
 } uhm_ellipse;
 
-bool uhm_parse_ellipse(uhm_ellipse* ellipse, char* data, uint32_t size, uint32_t* cursor){
-    bool error = false;
-    ellipse->x = uhm_chopf32(data,size,cursor,&error);
-    if(error) return false;
-    ellipse->y = uhm_chopf32(data,size,cursor,&error);
-    if(error) return false;
-    ellipse->rw = uhm_chopf32(data,size,cursor,&error);
-    if(error) return false;
-    ellipse->rh = uhm_chopf32(data,size,cursor,&error);
-    if(error) return false;
-    ellipse->fillType = uhm_chop8(data,size,cursor,&error);
-    if(error) return false;
+int uhm_parse_ellipse(uhm_ellipse* ellipse, char* data, uint32_t size, uint32_t* cursor){
+    int e;
+    if(
+        (e=uhm_chopf32(data,size,cursor,&ellipse->x))<0||
+        (e=uhm_chopf32(data,size,cursor,&ellipse->y))<0||
+        (e=uhm_chopf32(data,size,cursor,&ellipse->rw))<0||
+        (e=uhm_chopf32(data,size,cursor,&ellipse->rh))<0||
+        (e=uhm_chop8(data,size,cursor,&ellipse->fillType))<0
+    ) return e;
         
     if(ellipse->fillType == 'F'){
-        ellipse->color = uhm_chop32(data,size,cursor,&error);
-        if(error) return false;
+        if((e=uhm_chop32(data,size,cursor,&ellipse->color))<0) return e;
     }
     else if(ellipse->fillType == 'L'){
-        ellipse->px1 = uhm_chopf32(data,size,cursor,&error);
-        if(error) return false;
-        ellipse->py1 = uhm_chopf32(data,size,cursor,&error);
-        if(error) return false;
-        ellipse->px2 = uhm_chopf32(data,size,cursor,&error);
-        if(error) return false;
-        ellipse->py2 = uhm_chopf32(data,size,cursor,&error);
-        if(error) return false;
-
-        ellipse->color = uhm_chop32(data,size,cursor,&error);
-        if(error) return false;
-        ellipse->color2 = uhm_chop32(data,size,cursor,&error);
-        if(error) return false;
+        if(
+            (e=uhm_chopf32(data,size,cursor,&ellipse->px1))<0||
+            (e=uhm_chopf32(data,size,cursor,&ellipse->py1))<0||
+            (e=uhm_chopf32(data,size,cursor,&ellipse->px2))<0||
+            (e=uhm_chopf32(data,size,cursor,&ellipse->py2))<0||
+            (e=uhm_chop32(data,size,cursor,&ellipse->color))<0||
+            (e=uhm_chop32(data,size,cursor,&ellipse->color2))<0
+        ) return e;
     }
     else if(ellipse->fillType == 'C'){
-        ellipse->cx = uhm_chopf32(data,size,cursor,&error);
-        if(error) return false;
-        ellipse->cy = uhm_chopf32(data,size,cursor,&error);
-        if(error) return false;
-        ellipse->radius = uhm_chopf32(data,size,cursor,&error);
-        if(error) return false;
-
-        ellipse->color = uhm_chop32(data,size,cursor,&error);
-        if(error) return false;
-        ellipse->color2 = uhm_chop32(data,size,cursor,&error);
-        if(error) return false;
+        if(
+            (e=uhm_chopf32(data,size,cursor,&ellipse->cx))<0||
+            (e=uhm_chopf32(data,size,cursor,&ellipse->cy))<0||
+            (e=uhm_chopf32(data,size,cursor,&ellipse->radius))<0||
+            (e=uhm_chop32(data,size,cursor,&ellipse->color))<0||
+            (e=uhm_chop32(data,size,cursor,&ellipse->color2))<0
+        ) return e;
     }
 
     else {
         UHM_PRINTF("ParseCircle: UNKNOWN FILL TYPE\n");
-        return false;
+        return -1;
     }
 
-    return true;
+    return 0;
 }
 
 
-void uhm_draw_ellipse(uhm_ellipse* ellipse, uint32_t width, uint32_t height, char* output_data, float gx, float gy) {
+int uhm_draw_ellipse(uhm_ellipse* ellipse, uint32_t width, uint32_t height, char* output_data, float gx, float gy) {
     int32_t realX = (ellipse->x + gx) * width;
     int32_t realY = (ellipse->y + gy) * height;
     int32_t realRx = ellipse->rh * width;
@@ -555,6 +474,8 @@ void uhm_draw_ellipse(uhm_ellipse* ellipse, uint32_t width, uint32_t height, cha
             }
         }
     }
+
+    return 0;
 }
 
 #undef cx
@@ -567,8 +488,8 @@ typedef struct{
     bool skip_draw;
 } uhm_instruction;
 
-bool uhm_parse_instruction(char* data, uint32_t size, uint32_t* cursor, uhm_instruction* instruction);
-bool uhm_draw_instruction(uhm_instruction* instruction, uint32_t width, uint32_t height, char* output_data, float gx, float gy);
+int uhm_parse_instruction(char* data, uint32_t size, uint32_t* cursor, uhm_instruction* instruction);
+int uhm_draw_instruction(uhm_instruction* instruction, uint32_t width, uint32_t height, char* output_data, float gx, float gy);
 
 typedef struct {
     uhm_instruction *items;
@@ -582,16 +503,14 @@ typedef struct{
     uhm_instructions instructions;
 } uhm_tiledPattern;
 
-bool uhm_parse_tiledPattern(uhm_tiledPattern* tiledPattern, char* data, uint32_t size, uint32_t* cursor){
-    bool error = false;
-    tiledPattern->ox = uhm_chopf32(data,size,cursor,&error);
-    if(error) return false;
-    tiledPattern->oy = uhm_chopf32(data,size,cursor,&error);
-    if(error) return false;
-    tiledPattern->rows = uhm_chop16(data,size,cursor,&error);
-    if(error) return false;
-    tiledPattern->cols = uhm_chop16(data,size,cursor,&error);
-    if(error) return false;
+int uhm_parse_tiledPattern(uhm_tiledPattern* tiledPattern, char* data, uint32_t size, uint32_t* cursor){
+    int e;
+    if(
+        (e=uhm_chopf32(data,size,cursor,&tiledPattern->ox))<0||
+        (e=uhm_chopf32(data,size,cursor,&tiledPattern->oy))<0||
+        (e=uhm_chop16(data,size,cursor,&tiledPattern->rows))<0||
+        (e=uhm_chop16(data,size,cursor,&tiledPattern->cols))<0
+    ) return e;
     
     tiledPattern->instructions.capacity = 0;
     tiledPattern->instructions.count = 0;
@@ -600,12 +519,12 @@ bool uhm_parse_tiledPattern(uhm_tiledPattern* tiledPattern, char* data, uint32_t
     while(true){
         if(*cursor == size){
             UHM_PRINTF("end clause wasn't found\n");
-            return false;
+            return -1;
         }
         uhm_instruction instruction = {0};
-        if(!uhm_parse_instruction(data,size,cursor,&instruction)){
+        if((e=uhm_parse_instruction(data,size,cursor,&instruction))<0){
             if(instruction.data) UHM_FREE(instruction.data);
-            return false;
+            return e;
         }
 
         if(instruction.opcode == ']') break;
@@ -613,18 +532,20 @@ bool uhm_parse_tiledPattern(uhm_tiledPattern* tiledPattern, char* data, uint32_t
         uhm_append(&tiledPattern->instructions,instruction);
     }
 
-    return true;
+    return 0;
 }
 
-void uhm_draw_tiledPattern(uhm_tiledPattern* tiledPattern, uint32_t width, uint32_t height, char* output_data, float gx, float gy){
+int uhm_draw_tiledPattern(uhm_tiledPattern* tiledPattern, uint32_t width, uint32_t height, char* output_data, float gx, float gy){
+    int e;
     for(int i = 0; i < tiledPattern->rows; i++){
         for(int j = 0; j < tiledPattern->cols; j++){
             for(int index = 0; index < tiledPattern->instructions.count; index++){
                 if(tiledPattern->instructions.items[index].skip_draw) continue;
-                uhm_draw_instruction(&tiledPattern->instructions.items[index],width,height,output_data,tiledPattern->ox*j + gx,tiledPattern->oy*i + gy);
+                if((e=uhm_draw_instruction(&tiledPattern->instructions.items[index],width,height,output_data,tiledPattern->ox*j + gx,tiledPattern->oy*i + gy))<0) return e;
             }
         }
     }
+    return 0;
 }
 
 typedef struct {
@@ -646,39 +567,41 @@ typedef struct {
 
 uhm_patterns patterns = {0};
 
-bool uhm_parse_pattern(char* data, uint32_t size, uint32_t* cursor, uhm_instruction* instruction){
-    bool error = false;
-    uint8_t mode = uhm_chop8(data,size,cursor, &error);
-    if(error) return false;
-    if(mode == 'R'){
-        instruction->skip_draw = true;
-    }
-    uint16_t patternID = uhm_chop16(data,size,cursor,&error);
-    if(error) return false;
+int uhm_parse_pattern(char* data, uint32_t size, uint32_t* cursor, uhm_instruction* instruction){
+    int e;
+    uint8_t mode;
+    uint16_t patternID;
+    if(
+        (e=uhm_chop8(data,size,cursor,&mode))<0||
+        (e=uhm_chop16(data,size,cursor,&patternID))<0
+    ) return e;
+
     if(mode == 'P'){
-        float x = uhm_chopf32(data,size,cursor,&error);
-        if(error) return false;
-        float y = uhm_chopf32(data,size,cursor,&error);
-        if(error) return false;
+        float x,y;
+        if(
+            (e=uhm_chopf32(data,size,cursor,&x))<0||
+            (e=uhm_chopf32(data,size,cursor,&y))<0
+        ) return e;
         instruction->data = UHM_MALLOC(sizeof(uhm_place_pattern));
         ((uhm_place_pattern*)(instruction->data))->patternID = patternID;
         ((uhm_place_pattern*)(instruction->data))->x = x;
         ((uhm_place_pattern*)(instruction->data))->y = y;
-        return true;
+        return 0;
     }
     else if(mode == 'R'){
+        instruction->skip_draw = true;
         uhm_pattern pattern = {0};
         pattern.patternID = patternID;
 
         while(true){
             if(*cursor == size){
                 UHM_PRINTF("end clause wasn't found\n");
-                return false;
+                return -1;
             }
             uhm_instruction instruction = {0};
-            if(!uhm_parse_instruction(data,size,cursor,&instruction)){
+            if((e=uhm_parse_instruction(data,size,cursor,&instruction))<0){
                 if(instruction.data) UHM_FREE(instruction.data);
-                return false;
+                return e;
             }
 
             if(instruction.opcode == ']') break;
@@ -687,61 +610,62 @@ bool uhm_parse_pattern(char* data, uint32_t size, uint32_t* cursor, uhm_instruct
         }
 
         uhm_append(&patterns, pattern);
-        return true;
+        return 0;
     }
-    return false;
+    return -1;
 }
 
-bool uhm_parse_instruction(char* data, uint32_t size, uint32_t* cursor, uhm_instruction* instruction){
-    bool error = false;
-    uint8_t opcode = uhm_chop8(data,size,cursor,&error);
-    if(error) return false;
+int uhm_parse_instruction(char* data, uint32_t size, uint32_t* cursor, uhm_instruction* instruction){
+    int e;
+    uint8_t opcode;
+    if((e=uhm_chop8(data,size,cursor,&opcode))<0) return e;
 
     instruction->opcode = opcode;
 
     if(opcode == 'R'){
         uhm_rectangle rectangle;
-        if(!uhm_parse_rectangle(&rectangle, data,size,cursor)) return false;
+        if((e=uhm_parse_rectangle(&rectangle, data,size,cursor))<0) return e;
         instruction->data = UHM_MALLOC(sizeof(uhm_rectangle));
         *(uhm_rectangle*)(instruction->data) = rectangle;
-        return true;
+        return 0;
     }
     else if(opcode == 'C'){
         uhm_circle circle;
-        if(!uhm_parse_circle(&circle, data,size,cursor)) return false;
+        if((e=uhm_parse_circle(&circle, data,size,cursor))<0) return e;
         instruction->data = UHM_MALLOC(sizeof(uhm_circle));
         *(uhm_circle*)(instruction->data) = circle;
-        return true;
+        return 0;
     }
     else if(opcode == 'E'){
         uhm_ellipse ellipse;
-        if(!uhm_parse_ellipse(&ellipse, data,size,cursor)) return false;
+        if((e=uhm_parse_ellipse(&ellipse, data,size,cursor))<0) return e;
         instruction->data = UHM_MALLOC(sizeof(uhm_ellipse));
         *(uhm_ellipse*)(instruction->data) = ellipse;
-        return true;
+        return 0;
     }
     else if(opcode == 'T'){
         uhm_tiledPattern tiledPattern;
-        if(!uhm_parse_tiledPattern(&tiledPattern, data,size,cursor)) {
+        if((e=uhm_parse_tiledPattern(&tiledPattern, data,size,cursor))<0) {
             if(tiledPattern.instructions.items != NULL) UHM_FREE(tiledPattern.instructions.items);
-            return false;
+            return e;
         }
         instruction->data = UHM_MALLOC(sizeof(uhm_tiledPattern));
         *(uhm_tiledPattern*)(instruction->data) = tiledPattern;
-        return true;
+        return 0;
     }else if(opcode == 'P'){
         return uhm_parse_pattern(data,size,cursor,instruction);
     }
     else if(opcode == ']'){
-        return true;
+        return 0;
     }
 
     UHM_PRINTF("Parse: Unknown Opcode: %c\n", opcode);
-    return false;
+    return -1;
 };
 
-void uhm_draw_placePattern(uhm_place_pattern* patternDesc, uint32_t width, uint32_t height, char* output_data, float gx, float gy){
+int uhm_draw_placePattern(uhm_place_pattern* patternDesc, uint32_t width, uint32_t height, char* output_data, float gx, float gy){
     uhm_pattern* pattern = NULL;
+    int e;
     for(int i = 0; i < patterns.count; i++){
         if(patterns.items[i].patternID == patternDesc->patternID){
             pattern = &patterns.items[i];
@@ -750,25 +674,27 @@ void uhm_draw_placePattern(uhm_place_pattern* patternDesc, uint32_t width, uint3
     }
     if(pattern == NULL){
         UHM_PRINTF("Unknown patternID %d\n",patternDesc->patternID);
-        return;
+        return -1;
     }
     for(int i = 0; i < pattern->instructions.count; i++){
         if(pattern->instructions.items[i].skip_draw) continue;
-        uhm_draw_instruction(&pattern->instructions.items[i],width,height,output_data,patternDesc->x + gx,patternDesc->y + gy);
+        if((e=uhm_draw_instruction(&pattern->instructions.items[i],width,height,output_data,patternDesc->x + gx,patternDesc->y + gy))<0) return e;
     }
+    return 0;
 }
 
-bool uhm_draw_instruction(uhm_instruction* instruction, uint32_t width, uint32_t height, char* output_data, float gx, float gy){
-         if(instruction->opcode == 'R') uhm_draw_rectangle((uhm_rectangle*)instruction->data,width,height,output_data, gx, gy);
-    else if(instruction->opcode == 'C') uhm_draw_circle((uhm_circle*)instruction->data,width,height,output_data, gx, gy);
-    else if(instruction->opcode == 'E') uhm_draw_ellipse((uhm_ellipse*)instruction->data,width,height,output_data, gx, gy);
-    else if(instruction->opcode == 'T') uhm_draw_tiledPattern((uhm_tiledPattern*)instruction->data,width,height,output_data, gx, gy);
-    else if(instruction->opcode == 'P') uhm_draw_placePattern((uhm_place_pattern*)instruction->data,width,height,output_data, gx, gy);
+int uhm_draw_instruction(uhm_instruction* instruction, uint32_t width, uint32_t height, char* output_data, float gx, float gy){
+    int e;
+         if(instruction->opcode == 'R') {if((e=uhm_draw_rectangle((uhm_rectangle*)instruction->data,width,height,output_data, gx, gy))<0) return e;}
+    else if(instruction->opcode == 'C') {if((e=uhm_draw_circle((uhm_circle*)instruction->data,width,height,output_data, gx, gy))<0) return e;}
+    else if(instruction->opcode == 'E') {if((e=uhm_draw_ellipse((uhm_ellipse*)instruction->data,width,height,output_data, gx, gy))<0) return e;}
+    else if(instruction->opcode == 'T') {if((e=uhm_draw_tiledPattern((uhm_tiledPattern*)instruction->data,width,height,output_data, gx, gy))<0) return e;}
+    else if(instruction->opcode == 'P') {if((e=uhm_draw_placePattern((uhm_place_pattern*)instruction->data,width,height,output_data, gx, gy))<0) return e;}
     else{
         UHM_PRINTF("Draw: Unknown Opcode %c\n", instruction->opcode);
-        return false; 
+        return -1; 
     }
-    return true;
+    return 0;
 }
 
 char* uhm_encode(char* data, uint32_t size, uint32_t width, uint32_t height){
@@ -802,15 +728,15 @@ char* uhm_encode(char* data, uint32_t size, uint32_t width, uint32_t height){
     UHM_PRINTF("File Verified\n");
 
     // setting image background color
-    bool error = false;
-    uint32_t backgroundColor = uhm_chop32(data,size,&cursor,&error);
-    if(error) return NULL;
+    uint32_t backgroundColor;
+    int e;
+    if((e=uhm_chop32(data,size,&cursor,&backgroundColor))<0) return NULL;
     for(int i = 0; i < width * height; i++) ((uint32_t*)output_data)[i] = backgroundColor;
 
     uhm_instruction instruction = {0};
     while(cursor < size){
         instruction = {0};
-        if(!uhm_parse_instruction(data,size,&cursor,&instruction)) {
+        if((e=uhm_parse_instruction(data,size,&cursor,&instruction))<0) {
             UHM_FREE(output_data);
             if(instruction.data) UHM_FREE(instruction.data);
             if(instruction.opcode == 'T') UHM_FREE(((uhm_tiledPattern*)instruction.data)->instructions.items);
@@ -818,7 +744,7 @@ char* uhm_encode(char* data, uint32_t size, uint32_t width, uint32_t height){
         }
 
         if(!instruction.skip_draw){
-            if(!uhm_draw_instruction(&instruction,width,height,output_data, 0, 0)) {
+            if((e=uhm_draw_instruction(&instruction,width,height,output_data, 0, 0))<0) {
                 UHM_FREE(output_data);
                 if(instruction.data) UHM_FREE(instruction.data);
                 if(instruction.opcode == 'T') UHM_FREE(((uhm_tiledPattern*)instruction.data)->instructions.items);
