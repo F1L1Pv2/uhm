@@ -455,6 +455,108 @@ void uhm_draw_circle(uhm_circle* circle, uint32_t width, uint32_t height, char* 
     }
 }
 
+typedef struct {
+    float x,y,rw,rh,px1,py1,px2,py2;
+    uint8_t fillType;
+    uint32_t color,color2;
+} uhm_ellipse;
+
+bool uhm_parse_ellipse(uhm_ellipse* ellipse, char* data, uint32_t size, uint32_t* cursor){
+    bool error = false;
+    ellipse->x = uhm_chopf32(data,size,cursor,&error);
+    if(error) return false;
+    ellipse->y = uhm_chopf32(data,size,cursor,&error);
+    if(error) return false;
+    ellipse->rw = uhm_chopf32(data,size,cursor,&error);
+    if(error) return false;
+    ellipse->rh = uhm_chopf32(data,size,cursor,&error);
+    if(error) return false;
+    ellipse->fillType = uhm_chop8(data,size,cursor,&error);
+    if(error) return false;
+        
+    if(ellipse->fillType == 'F'){
+        ellipse->color = uhm_chop32(data,size,cursor,&error);
+        if(error) return false;
+    }
+    else if(ellipse->fillType == 'L'){
+        ellipse->px1 = uhm_chopf32(data,size,cursor,&error);
+        if(error) return false;
+        ellipse->py1 = uhm_chopf32(data,size,cursor,&error);
+        if(error) return false;
+        ellipse->px2 = uhm_chopf32(data,size,cursor,&error);
+        if(error) return false;
+        ellipse->py2 = uhm_chopf32(data,size,cursor,&error);
+        if(error) return false;
+
+        ellipse->color = uhm_chop32(data,size,cursor,&error);
+        if(error) return false;
+        ellipse->color2 = uhm_chop32(data,size,cursor,&error);
+        if(error) return false;
+    }
+    else if(ellipse->fillType == 'C'){
+        ellipse->cx = uhm_chopf32(data,size,cursor,&error);
+        if(error) return false;
+        ellipse->cy = uhm_chopf32(data,size,cursor,&error);
+        if(error) return false;
+        ellipse->radius = uhm_chopf32(data,size,cursor,&error);
+        if(error) return false;
+
+        ellipse->color = uhm_chop32(data,size,cursor,&error);
+        if(error) return false;
+        ellipse->color2 = uhm_chop32(data,size,cursor,&error);
+        if(error) return false;
+    }
+
+    else {
+        UHM_PRINTF("ParseCircle: UNKNOWN FILL TYPE\n");
+        return false;
+    }
+
+    return true;
+}
+
+
+void uhm_draw_ellipse(uhm_ellipse* ellipse, uint32_t width, uint32_t height, char* output_data, float gx, float gy) {
+    int32_t realX = (ellipse->x + gx) * width;
+    int32_t realY = (ellipse->y + gy) * height;
+    int32_t realRx = ellipse->rh * width;
+    int32_t realRy = ellipse->rw * height;
+
+    UHM_PRINTF("Drawing ellipse x: %d y: %d rx: %d ry: %d\n", realX, realY, realRx, realRy);
+
+    for (int32_t i = realY - realRy; i < realY + realRy; i++) {
+        if (i < 0 || i >= height) continue;
+        for (int32_t j = realX - realRx; j < realX + realRx; j++) {
+            if (j < 0 || j >= width) continue;
+            
+            float y = (float)(i - realY) / realRy;
+            float x = (float)(j - realX) / realRx;
+
+            if (x * x + y * y <= 1.0f) {  // Inside ellipse
+                if (ellipse->fillType == 'L') {
+                    ((uint32_t*)output_data)[i * width + j] = uhm_linearGetColor(
+                        i, j,
+                        realX - realRx, realY - realRy,
+                        realRx * 2, realRy * 2,
+                        ellipse->px1, ellipse->py1, ellipse->px2, ellipse->py2,
+                        ellipse->color, ellipse->color2
+                    );
+                } else if (ellipse->fillType == 'C') {
+                    ((uint32_t*)output_data)[i * width + j] = uhm_circularGetColor(
+                        i, j,
+                        realX - realRx, realY - realRy,
+                        realRx * 2, realRy * 2,
+                        ellipse->cx, ellipse->cy, ellipse->radius,
+                        ellipse->color, ellipse->color2
+                    );
+                } else {
+                    ((uint32_t*)output_data)[i * width + j] = ellipse->color;
+                }
+            }
+        }
+    }
+}
+
 #undef cx
 #undef cy
 #undef radius
@@ -506,7 +608,7 @@ bool uhm_parse_tiledPattern(uhm_tiledPattern* tiledPattern, char* data, uint32_t
             return false;
         }
 
-        if(instruction.opcode == 'E') break;
+        if(instruction.opcode == ']') break;
 
         uhm_append(&tiledPattern->instructions,instruction);
     }
@@ -579,7 +681,7 @@ bool uhm_parse_pattern(char* data, uint32_t size, uint32_t* cursor, uhm_instruct
                 return false;
             }
 
-            if(instruction.opcode == 'E') break;
+            if(instruction.opcode == ']') break;
 
             uhm_append(&pattern.instructions,instruction);
         }
@@ -596,7 +698,6 @@ bool uhm_parse_instruction(char* data, uint32_t size, uint32_t* cursor, uhm_inst
     if(error) return false;
 
     instruction->opcode = opcode;
-    instruction->skip_draw = false;
 
     if(opcode == 'R'){
         uhm_rectangle rectangle;
@@ -612,6 +713,13 @@ bool uhm_parse_instruction(char* data, uint32_t size, uint32_t* cursor, uhm_inst
         *(uhm_circle*)(instruction->data) = circle;
         return true;
     }
+    else if(opcode == 'E'){
+        uhm_ellipse ellipse;
+        if(!uhm_parse_ellipse(&ellipse, data,size,cursor)) return false;
+        instruction->data = UHM_MALLOC(sizeof(uhm_ellipse));
+        *(uhm_ellipse*)(instruction->data) = ellipse;
+        return true;
+    }
     else if(opcode == 'T'){
         uhm_tiledPattern tiledPattern;
         if(!uhm_parse_tiledPattern(&tiledPattern, data,size,cursor)) {
@@ -624,7 +732,7 @@ bool uhm_parse_instruction(char* data, uint32_t size, uint32_t* cursor, uhm_inst
     }else if(opcode == 'P'){
         return uhm_parse_pattern(data,size,cursor,instruction);
     }
-    else if(opcode == 'E'){
+    else if(opcode == ']'){
         return true;
     }
 
@@ -653,6 +761,7 @@ void uhm_draw_placePattern(uhm_place_pattern* patternDesc, uint32_t width, uint3
 bool uhm_draw_instruction(uhm_instruction* instruction, uint32_t width, uint32_t height, char* output_data, float gx, float gy){
          if(instruction->opcode == 'R') uhm_draw_rectangle((uhm_rectangle*)instruction->data,width,height,output_data, gx, gy);
     else if(instruction->opcode == 'C') uhm_draw_circle((uhm_circle*)instruction->data,width,height,output_data, gx, gy);
+    else if(instruction->opcode == 'E') uhm_draw_ellipse((uhm_ellipse*)instruction->data,width,height,output_data, gx, gy);
     else if(instruction->opcode == 'T') uhm_draw_tiledPattern((uhm_tiledPattern*)instruction->data,width,height,output_data, gx, gy);
     else if(instruction->opcode == 'P') uhm_draw_placePattern((uhm_place_pattern*)instruction->data,width,height,output_data, gx, gy);
     else{
@@ -700,6 +809,7 @@ char* uhm_encode(char* data, uint32_t size, uint32_t width, uint32_t height){
 
     uhm_instruction instruction = {0};
     while(cursor < size){
+        instruction = {0};
         if(!uhm_parse_instruction(data,size,&cursor,&instruction)) {
             UHM_FREE(output_data);
             if(instruction.data) UHM_FREE(instruction.data);
