@@ -211,7 +211,6 @@ uint32_t uhm_circularGetColor(
     float centerX, float centerY, 
     float radius, 
     uint32_t colorInner, uint32_t colorOuter) {
-    
     // Compute the center position of the circular gradient
     int32_t cy = centerX * bbWidth + bbx;
     int32_t cx = centerY * bbHeight + bby;
@@ -296,10 +295,24 @@ int uhm_draw_rectangle(uhm_rectangle* rectangle,uint32_t width, uint32_t height,
             if(j < 0 || j >= height) continue;
 
             if(rectangle->fillType == 'L'){
-                ((uint32_t*)output_data)[i*width + j] = uhm_linearGetColor(i,j,realX,realY,realWidth,realHeight,rectangle->px1,rectangle->py1,rectangle->px2,rectangle->py2,rectangle->color,rectangle->color2);
+                ((uint32_t*)output_data)[i*width + j] = uhm_linearGetColor(
+                    i,j,
+                    realX,realY,
+                    realWidth,realHeight,
+                    rectangle->px1,rectangle->py1,
+                    rectangle->px2,rectangle->py2,
+                    rectangle->color,rectangle->color2
+                );
             }
             else if(rectangle->fillType == 'C'){
-                ((uint32_t*)output_data)[i*width + j] = uhm_circularGetColor(i,j,realX,realY,realWidth,realHeight,rectangle->cx,rectangle->cy,rectangle->radius,rectangle->color,rectangle->color2);
+                ((uint32_t*)output_data)[i*width + j] = uhm_circularGetColor(
+                    i,j,
+                    realX,realY,
+                    realWidth,realHeight,
+                    rectangle->cx,rectangle->cy,
+                    rectangle->radius,
+                    rectangle->color,rectangle->color2
+                );
             }
             else{
                 ((uint32_t*)output_data)[i*width + j] = rectangle->color;
@@ -372,10 +385,24 @@ int uhm_draw_circle(uhm_circle* circle, uint32_t width, uint32_t height, char* o
             uint32_t x = j - realX;
             if(y*y + x*x < realR*realR){
                 if(circle->fillType == 'L'){
-                    ((uint32_t*)output_data)[i*width + j] = uhm_linearGetColor(i,j,realX - realR,realY - realR,realR*2,realR*2,circle->px1,circle->py1,circle->px2,circle->py2,circle->color,circle->color2);
+                    ((uint32_t*)output_data)[i*width + j] = uhm_linearGetColor(
+                        i,j,
+                        realX - realR,realY - realR,
+                        realR*2,realR*2,
+                        circle->px1,circle->py1,
+                        circle->px2,circle->py2,
+                        circle->color,circle->color2
+                    );
                 }
                 else if(circle->fillType == 'C'){
-                    ((uint32_t*)output_data)[i*width + j] = uhm_circularGetColor(i,j,realX - realR,realY - realR,realR*2,realR*2,circle->cx,circle->cy,circle->radius,circle->color,circle->color2);
+                    ((uint32_t*)output_data)[i*width + j] = uhm_circularGetColor(
+                        i,j,
+                        realX - realR,realY - realR,
+                        realR*2,realR*2,
+                        circle->cx,circle->cy,
+                        circle->radius,
+                        circle->color,circle->color2
+                    );
                 }
                 else{
                     ((uint32_t*)output_data)[i*width + j] = circle->color;
@@ -451,7 +478,7 @@ int uhm_draw_ellipse(uhm_ellipse* ellipse, uint32_t width, uint32_t height, char
             float y = (float)(i - realY) / realRy;
             float x = (float)(j - realX) / realRx;
 
-            if (x * x + y * y <= 1.0f) {  // Inside ellipse
+            if (x * x + y * y <= 1.0f) {
                 if (ellipse->fillType == 'L') {
                     ((uint32_t*)output_data)[i * width + j] = uhm_linearGetColor(
                         i, j,
