@@ -30,6 +30,8 @@ char* uhm_encode(char* data, uint32_t size, uint32_t width, uint32_t height);
 #define UHM_FREE(p)           free(p)
 #endif
 
+#define UHM_PI (3.14159265359)
+
 #define UHM_ASSERT assert
 
 #ifndef UHM_DA_INIT_CAP
@@ -281,43 +283,55 @@ int uhm_parse_rectangle(uhm_rectangle* rectangle, char* data, uint32_t size, uin
     return 0;
 }
 
-int uhm_draw_rectangle(uhm_rectangle* rectangle,uint32_t width, uint32_t height, char* output_data, float gx, float gy){
-    int32_t realX = (rectangle->x+gx)*width;
-    int32_t realY = (rectangle->y+gy)*width;
-    int32_t realWidth = rectangle->width*width;
-    int32_t realHeight = rectangle->height*width;
+int uhm_draw_rectangle(uhm_rectangle* rectangle,uint32_t width, uint32_t height, char* output_data, float gx, float gy, float rotate){
+    float realX = (rectangle->x + gx) * width;
+    float realY = (rectangle->y + gy) * height;
+    float centerX = realX + (rectangle->width * width) / 2.0f;
+    float centerY = realY + (rectangle->height * height) / 2.0f;
+    float cosTheta = cosf(rotate);
+    float sinTheta = sinf(rotate);
+    float halfWidth = rectangle->width * width / 2.0f;
+    float halfHeight = rectangle->height * height / 2.0f;
 
-    UHM_PRINTF("Drawing rectangle x: %d y: %d width: %d height: %d\n",realX,realY,realWidth,realHeight);
+    UHM_PRINTF("Drawing rotated rectangle at top-left x: %.2f, y: %.2f, width: %.2f, height: %.2f, rotation: %.2f radians\n", realX, realY, rectangle->width * width, rectangle->height * height, rotate);
 
-    for(int32_t i = realY; i < realY+realHeight; i++){
-        if(i < 0 || i >= width) continue;
-        for(int32_t j = realX; j < realX+realWidth; j++){
-            if(j < 0 || j >= height) continue;
+    for (int32_t i = 0; i < height; i++) {
+        for (int32_t j = 0; j < width; j++) {
+            float localX = (j - centerX) * cosTheta + (i - centerY) * sinTheta;
+            float localY = -(j - centerX) * sinTheta + (i - centerY) * cosTheta;
+            if (localX >= -halfWidth && localX <= halfWidth && localY >= -halfHeight && localY <= halfHeight) {
+                float normX = (localX + halfWidth) / (2 * halfWidth);
+                float normY = (localY + halfHeight) / (2 * halfHeight);
 
-            if(rectangle->fillType == 'L'){
-                ((uint32_t*)output_data)[i*width + j] = uhm_linearGetColor(
-                    i,j,
-                    realX,realY,
-                    realWidth,realHeight,
-                    rectangle->px1,rectangle->py1,
-                    rectangle->px2,rectangle->py2,
-                    rectangle->color,rectangle->color2
-                );
+                uint32_t color = rectangle->color;
+
+                if (rectangle->fillType == 'L') {
+                    float rotatedPx1 = ((rectangle->px1 - 0.5) * cosf(rotate) - (rectangle->py1 - 0.5) * sinf(rotate)) + 0.5;
+                    float rotatedPy1 = ((rectangle->px1 - 0.5) * sinf(rotate) + (rectangle->py1 - 0.5) * cosf(rotate)) + 0.5;
+                    float rotatedPx2 = ((rectangle->px2 - 0.5) * cosf(rotate) - (rectangle->py2 - 0.5) * sinf(rotate)) + 0.5;
+                    float rotatedPy2 = ((rectangle->px2 - 0.5) * sinf(rotate) + (rectangle->py2 - 0.5) * cosf(rotate)) + 0.5;
+
+                    color = uhm_linearGetColor(
+                        i, j, realX, realY,
+                        rectangle->width * width,
+                        rectangle->height * height,
+                        rotatedPx1, rotatedPy1,
+                        rotatedPx2, rotatedPy2,
+                        rectangle->color, rectangle->color2);
+                } else if (rectangle->fillType == 'C') {
+                    float rotatedCx = ((rectangle->cx - 0.5) * cosf(rotate) - (rectangle->cy - 0.5) * sinf(rotate)) + 0.5;
+                    float rotatedCy = ((rectangle->cx - 0.5) * sinf(rotate) + (rectangle->cy - 0.5) * cosf(rotate)) + 0.5;
+
+                    color = uhm_circularGetColor(
+                        i, j, realX, realY,
+                        rectangle->width * width, rectangle->height * height,
+                        rotatedCx, rotatedCy,
+                        rectangle->radius,
+                        rectangle->color, rectangle->color2);
+                }
+
+                ((uint32_t*)output_data)[i * width + j] = color;
             }
-            else if(rectangle->fillType == 'C'){
-                ((uint32_t*)output_data)[i*width + j] = uhm_circularGetColor(
-                    i,j,
-                    realX,realY,
-                    realWidth,realHeight,
-                    rectangle->cx,rectangle->cy,
-                    rectangle->radius,
-                    rectangle->color,rectangle->color2
-                );
-            }
-            else{
-                ((uint32_t*)output_data)[i*width + j] = rectangle->color;
-            }
-
         }
     }
 
@@ -370,7 +384,7 @@ int uhm_parse_circle(uhm_circle* circle, char* data, uint32_t size, uint32_t* cu
     return 0;
 }
 
-int uhm_draw_circle(uhm_circle* circle, uint32_t width, uint32_t height, char* output_data, float gx, float gy){
+int uhm_draw_circle(uhm_circle* circle, uint32_t width, uint32_t height, char* output_data, float gx, float gy, float rotate){
     int32_t realX = (circle->x+gx)*width;
     int32_t realY = (circle->y+gy)*width;
     int32_t realR = circle->r*width;
@@ -385,21 +399,29 @@ int uhm_draw_circle(uhm_circle* circle, uint32_t width, uint32_t height, char* o
             uint32_t x = j - realX;
             if(y*y + x*x < realR*realR){
                 if(circle->fillType == 'L'){
+                    float rotatedPx1 = ((circle->px1 - 0.5) * cosf(-rotate) - (circle->py1 - 0.5) * sinf(-rotate)) + 0.5;
+                    float rotatedPy1 = ((circle->px1 - 0.5) * sinf(-rotate) + (circle->py1 - 0.5) * cosf(-rotate)) + 0.5;
+                    float rotatedPx2 = ((circle->px2 - 0.5) * cosf(-rotate) - (circle->py2 - 0.5) * sinf(-rotate)) + 0.5;
+                    float rotatedPy2 = ((circle->px2 - 0.5) * sinf(-rotate) + (circle->py2 - 0.5) * cosf(-rotate)) + 0.5;
+
                     ((uint32_t*)output_data)[i*width + j] = uhm_linearGetColor(
                         i,j,
                         realX - realR,realY - realR,
                         realR*2,realR*2,
-                        circle->px1,circle->py1,
-                        circle->px2,circle->py2,
+                        rotatedPx1,rotatedPy1,
+                        rotatedPx2,rotatedPy2,
                         circle->color,circle->color2
                     );
                 }
                 else if(circle->fillType == 'C'){
+                    float rotatedCx = ((circle->cx - 0.5) * cosf(-rotate) - (circle->cy - 0.5) * sinf(-rotate)) + 0.5;
+                    float rotatedCy = ((circle->cx - 0.5) * sinf(-rotate) + (circle->cy - 0.5) * cosf(-rotate)) + 0.5;
+
                     ((uint32_t*)output_data)[i*width + j] = uhm_circularGetColor(
                         i,j,
                         realX - realR,realY - realR,
                         realR*2,realR*2,
-                        circle->cx,circle->cy,
+                        rotatedCx,rotatedCy,
                         circle->radius,
                         circle->color,circle->color2
                     );
@@ -462,42 +484,55 @@ int uhm_parse_ellipse(uhm_ellipse* ellipse, char* data, uint32_t size, uint32_t*
 }
 
 
-int uhm_draw_ellipse(uhm_ellipse* ellipse, uint32_t width, uint32_t height, char* output_data, float gx, float gy) {
-    int32_t realX = (ellipse->x + gx) * width;
-    int32_t realY = (ellipse->y + gy) * height;
-    int32_t realRx = ellipse->rh * width;
-    int32_t realRy = ellipse->rw * height;
+int uhm_draw_ellipse(uhm_ellipse* ellipse, uint32_t width, uint32_t height, char* output_data, float gx, float gy, float rotate) {
+    float realX = (ellipse->x + gx) * width;
+    float realY = (ellipse->y + gy) * height;
+    float centerX = realX;
+    float centerY = realY;
+    float realRx = ellipse->rw * width;
+    float realRy = ellipse->rh * height;
+    float cosTheta = cosf(rotate);
+    float sinTheta = sinf(rotate);
 
-    UHM_PRINTF("Drawing ellipse x: %d y: %d rx: %d ry: %d\n", realX, realY, realRx, realRy);
+    UHM_PRINTF("Drawing rotated ellipse at center x: %.2f, y: %.2f, rx: %.2f, ry: %.2f, rotation: %.2f radians\n", centerX, centerY, realRx, realRy, rotate);
 
-    for (int32_t i = realY - realRy; i < realY + realRy; i++) {
-        if (i < 0 || i >= height) continue;
-        for (int32_t j = realX - realRx; j < realX + realRx; j++) {
-            if (j < 0 || j >= width) continue;
-            
-            float y = (float)(i - realY) / realRy;
-            float x = (float)(j - realX) / realRx;
+    for (int32_t i = 0; i < height; i++) {
+        for (int32_t j = 0; j < width; j++) {
+            float localX = (j - centerX) * cosTheta + (i - centerY) * sinTheta;
+            float localY = -(j - centerX) * sinTheta + (i - centerY) * cosTheta;
+            float normX = localX / realRx;
+            float normY = localY / realRy;
+            if (normX * normX + normY * normY <= 1.0f) {
+                uint32_t color = ellipse->color;
+                float rotatedPx1 = ((ellipse->px1 - 0.5) * cosf(rotate) - (ellipse->py1 - 0.5) * sinf(rotate)) + 0.5;
+                float rotatedPy1 = ((ellipse->px1 - 0.5) * sinf(rotate) + (ellipse->py1 - 0.5) * cosf(rotate)) + 0.5;
+                float rotatedPx2 = ((ellipse->px2 - 0.5) * cosf(rotate) - (ellipse->py2 - 0.5) * sinf(rotate)) + 0.5;
+                float rotatedPy2 = ((ellipse->px2 - 0.5) * sinf(rotate) + (ellipse->py2 - 0.5) * cosf(rotate)) + 0.5;
 
-            if (x * x + y * y <= 1.0f) {
                 if (ellipse->fillType == 'L') {
-                    ((uint32_t*)output_data)[i * width + j] = uhm_linearGetColor(
+                    color = uhm_linearGetColor(
                         i, j,
                         realX - realRx, realY - realRy,
                         realRx * 2, realRy * 2,
-                        ellipse->px1, ellipse->py1, ellipse->px2, ellipse->py2,
+                        rotatedPx1, rotatedPy1,
+                        rotatedPx2, rotatedPy2,
                         ellipse->color, ellipse->color2
                     );
                 } else if (ellipse->fillType == 'C') {
-                    ((uint32_t*)output_data)[i * width + j] = uhm_circularGetColor(
+                    float rotatedCx = ((ellipse->cx - 0.5) * cosf(rotate) - (ellipse->cy - 0.5) * sinf(rotate)) + 0.5;
+                    float rotatedCy = ((ellipse->cx - 0.5) * sinf(rotate) + (ellipse->cy - 0.5) * cosf(rotate)) + 0.5;
+
+                    color = uhm_circularGetColor(
                         i, j,
                         realX - realRx, realY - realRy,
                         realRx * 2, realRy * 2,
-                        ellipse->cx, ellipse->cy, ellipse->radius,
+                        rotatedCx, rotatedCy,
+                        ellipse->radius,
                         ellipse->color, ellipse->color2
                     );
-                } else {
-                    ((uint32_t*)output_data)[i * width + j] = ellipse->color;
                 }
+
+                ((uint32_t*)output_data)[i * width + j] = color;
             }
         }
     }
@@ -516,7 +551,7 @@ typedef struct{
 } uhm_instruction;
 
 int uhm_parse_instruction(char* data, uint32_t size, uint32_t* cursor, uhm_instruction* instruction);
-int uhm_draw_instruction(uhm_instruction* instruction, uint32_t width, uint32_t height, char* output_data, float gx, float gy);
+int uhm_draw_instruction(uhm_instruction* instruction, uint32_t width, uint32_t height, char* output_data, float gx, float gy, float rotation);
 
 typedef struct {
     uhm_instruction *items;
@@ -562,13 +597,17 @@ int uhm_parse_tiledPattern(uhm_tiledPattern* tiledPattern, char* data, uint32_t 
     return 0;
 }
 
-int uhm_draw_tiledPattern(uhm_tiledPattern* tiledPattern, uint32_t width, uint32_t height, char* output_data, float gx, float gy){
+int uhm_draw_tiledPattern(uhm_tiledPattern* tiledPattern, uint32_t width, uint32_t height, char* output_data, float gx, float gy, float rotation){
+    if(rotation != 0 || rotation < 0 || rotation > 0){
+        UHM_PRINTF("DrawTiledPattern rotation currently not supported \n");
+        return -1;
+    }
     int e;
     for(int i = 0; i < tiledPattern->rows; i++){
         for(int j = 0; j < tiledPattern->cols; j++){
             for(int index = 0; index < tiledPattern->instructions.count; index++){
                 if(tiledPattern->instructions.items[index].skip_draw) continue;
-                if((e=uhm_draw_instruction(&tiledPattern->instructions.items[index],width,height,output_data,tiledPattern->ox*j + gx,tiledPattern->oy*i + gy))<0) return e;
+                if((e=uhm_draw_instruction(&tiledPattern->instructions.items[index],width,height,output_data,tiledPattern->ox*j + gx,tiledPattern->oy*i + gy, rotation))<0) return e;
             }
         }
     }
@@ -690,7 +729,11 @@ int uhm_parse_instruction(char* data, uint32_t size, uint32_t* cursor, uhm_instr
     return -1;
 };
 
-int uhm_draw_placePattern(uhm_place_pattern* patternDesc, uint32_t width, uint32_t height, char* output_data, float gx, float gy){
+int uhm_draw_placePattern(uhm_place_pattern* patternDesc, uint32_t width, uint32_t height, char* output_data, float gx, float gy, float rotation){
+    if(rotation != 0 || rotation < 0 || rotation > 0){
+        UHM_PRINTF("DrawTiledPattern rotation currently not supported \n");
+        return -1;
+    }
     uhm_pattern* pattern = NULL;
     int e;
     for(int i = 0; i < patterns.count; i++){
@@ -705,18 +748,18 @@ int uhm_draw_placePattern(uhm_place_pattern* patternDesc, uint32_t width, uint32
     }
     for(int i = 0; i < pattern->instructions.count; i++){
         if(pattern->instructions.items[i].skip_draw) continue;
-        if((e=uhm_draw_instruction(&pattern->instructions.items[i],width,height,output_data,patternDesc->x + gx,patternDesc->y + gy))<0) return e;
+        if((e=uhm_draw_instruction(&pattern->instructions.items[i],width,height,output_data,patternDesc->x + gx,patternDesc->y + gy, rotation))<0) return e;
     }
     return 0;
 }
 
-int uhm_draw_instruction(uhm_instruction* instruction, uint32_t width, uint32_t height, char* output_data, float gx, float gy){
+int uhm_draw_instruction(uhm_instruction* instruction, uint32_t width, uint32_t height, char* output_data, float gx, float gy, float rotation){
     int e;
-         if(instruction->opcode == 'R') {if((e=uhm_draw_rectangle((uhm_rectangle*)instruction->data,width,height,output_data, gx, gy))<0) return e;}
-    else if(instruction->opcode == 'C') {if((e=uhm_draw_circle((uhm_circle*)instruction->data,width,height,output_data, gx, gy))<0) return e;}
-    else if(instruction->opcode == 'E') {if((e=uhm_draw_ellipse((uhm_ellipse*)instruction->data,width,height,output_data, gx, gy))<0) return e;}
-    else if(instruction->opcode == 'T') {if((e=uhm_draw_tiledPattern((uhm_tiledPattern*)instruction->data,width,height,output_data, gx, gy))<0) return e;}
-    else if(instruction->opcode == 'P') {if((e=uhm_draw_placePattern((uhm_place_pattern*)instruction->data,width,height,output_data, gx, gy))<0) return e;}
+         if(instruction->opcode == 'R') {if((e=uhm_draw_rectangle((uhm_rectangle*)instruction->data,width,height,output_data, gx, gy, rotation))<0) return e;}
+    else if(instruction->opcode == 'C') {if((e=uhm_draw_circle((uhm_circle*)instruction->data,width,height,output_data, gx, gy, rotation))<0) return e;}
+    else if(instruction->opcode == 'E') {if((e=uhm_draw_ellipse((uhm_ellipse*)instruction->data,width,height,output_data, gx, gy, rotation))<0) return e;}
+    else if(instruction->opcode == 'T') {if((e=uhm_draw_tiledPattern((uhm_tiledPattern*)instruction->data,width,height,output_data, gx, gy, rotation))<0) return e;}
+    else if(instruction->opcode == 'P') {if((e=uhm_draw_placePattern((uhm_place_pattern*)instruction->data,width,height,output_data, gx, gy, rotation))<0) return e;}
     else{
         UHM_PRINTF("Draw: Unknown Opcode %c\n", instruction->opcode);
         return -1; 
@@ -771,7 +814,7 @@ char* uhm_encode(char* data, uint32_t size, uint32_t width, uint32_t height){
         }
 
         if(!instruction.skip_draw){
-            if((e=uhm_draw_instruction(&instruction,width,height,output_data, 0, 0))<0) {
+            if((e=uhm_draw_instruction(&instruction,width,height,output_data, 0, 0, 0))<0) {
                 UHM_FREE(output_data);
                 if(instruction.data) UHM_FREE(instruction.data);
                 if(instruction.opcode == 'T') UHM_FREE(((uhm_tiledPattern*)instruction.data)->instructions.items);
