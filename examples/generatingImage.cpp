@@ -235,6 +235,11 @@ void add_endClause(std::vector<char>& vec){
     add_u8(vec,']');
 }
 
+void add_rotateModifier(std::vector<char>& vec, float radians){
+    add_u8(vec,'|');
+    add_f32(vec,radians);
+}
+
 void add_placePattern(std::vector<char>& vec, uint16_t patternID, float x, float y){
     add_u8(vec, 'P');
     add_u8(vec, 'P');
@@ -250,55 +255,112 @@ int main(){
     add_boilerplate(uhm_tester, 0xFF181818);
 
     
-    // Example 1 - pure shapes
-    add_rectangle_filled(uhm_tester,0.25,0.5,0.1,0.3,0xFFFF0000);
-    add_circle_filled(uhm_tester,0.25,0.25,0.3,0xFF00FF00);
-    add_rectangle_linearGradient(uhm_tester,0.75,0.75,0.1,0.1,0.0,0.0,1.0,1.0,0xFFFF00FF,0xFF00FF00);
-    add_rectangle_circularGradient(uhm_tester,0.0,0.75,0.2,0.1,0.5,0.5,0.5,0xFFFF00FF,0xFF00FF00);
-    add_circle_linearGradient(
-        uhm_tester,
-        0.5,0.5,0.3,
-        0.5,0.0,
-        0.5,1.0,
-        0xFFFF00FF,0xFF00FFFF
-    );
-    add_circle_circularGradient(
-        uhm_tester,
-        0.75,0.75,0.2,
-        0.5,0.7,
-        0.5,
-        0xFFFF00FF,0xFF00FFFF
-    );
-    add_ellipse_linearGradient(
-        uhm_tester,
-        0.1,0.1,
-        0.1,0.2,
-        0.5,0.0,
-        0.5,1.0,
-        0xFFFF00FF,0xFF00FFFF
-    );
+    // Example 1 - Pure Shapes
+    // add_rectangle_filled(uhm_tester,0.25,0.5,0.1,0.3,0xFFFF0000);
+    // add_circle_filled(uhm_tester,0.25,0.25,0.3,0xFF00FF00);
+    // add_rectangle_linearGradient(uhm_tester,0.75,0.75,0.1,0.1,0.0,0.0,1.0,1.0,0xFFFF00FF,0xFF00FF00);
+    // add_rectangle_circularGradient(uhm_tester,0.0,0.75,0.2,0.1,0.5,0.5,0.5,0xFFFF00FF,0xFF00FF00);
+    // add_circle_linearGradient(
+    //     uhm_tester,
+    //     0.5,0.5,0.3,
+    //     0.5,0.0,
+    //     0.5,1.0,
+    //     0xFFFF00FF,0xFF00FFFF
+    // );
+    // add_circle_circularGradient(
+    //     uhm_tester,
+    //     0.75,0.75,0.2,
+    //     0.5,0.7,
+    //     0.5,
+    //     0xFFFF00FF,0xFF00FFFF
+    // );
+    // add_ellipse_linearGradient(
+    //     uhm_tester,
+    //     0.1,0.1,
+    //     0.1,0.2,
+    //     0.5,0.0,
+    //     0.5,1.0,
+    //     0xFFFF00FF,0xFF00FFFF
+    // );
 
-    // Example 2 - tiled patterns
-    add_tiledPattern_startClause(uhm_tester,0.5,0.5,2,2);
-        add_tiledPattern_startClause(uhm_tester,0.25,0.25,2,2);
-            add_rectangle_linearGradient(uhm_tester,0,0,0.1,0.1,0.0,0.0,1.0,1.0,0xFFFF00FF,0xFF00FF00);
-        add_endClause(uhm_tester);
-        add_circle_linearGradient(
-            uhm_tester,
-            0.25/2+0.1/2,0.25/2+0.1/2,0.1,
-            0.5,0.0,
-            0.5,1.0,
-            0xFFFF00FF,0xFF00FFFF
-        );
-    add_endClause(uhm_tester);
+    // Example 2 - Tiled Patterns
+    // add_tiledPattern_startClause(uhm_tester,0.5,0.5,2,2);
+    //     add_tiledPattern_startClause(uhm_tester,0.25,0.25,2,2);
+    //         add_rectangle_linearGradient(uhm_tester,0,0,0.1,0.1,0.0,0.0,1.0,1.0,0xFFFF00FF,0xFF00FF00);
+    //     add_endClause(uhm_tester);
+    //     add_circle_linearGradient(
+    //         uhm_tester,
+    //         0.25/2+0.1/2,0.25/2+0.1/2,0.1,
+    //         0.5,0.0,
+    //         0.5,1.0,
+    //         0xFFFF00FF,0xFF00FFFF
+    //     );
+    // add_endClause(uhm_tester);
 
-    // Example 3 - patterns
-    add_definePattern_startClause(uhm_tester,69);
-        add_rectangle_linearGradient(uhm_tester,0,0,0.1,0.1,0.0,0.0,1.0,1.0,0xFFFFFF00,0xFF00FF00);
-        add_circle_linearGradient(uhm_tester,0.05,0.05,0.05,0.5,0.0,0.5,1.0,0xFFFF00FF,0xFF00FFFF);
-    add_endClause(uhm_tester);
-    add_tiledPattern_startClause(uhm_tester,0.5,0.5,2,2);
-        add_placePattern(uhm_tester,69,0.2,0.2);
+    // Example 3 - Patterns
+    // add_definePattern_startClause(uhm_tester,69);
+    //     add_rectangle_linearGradient(uhm_tester,0,0,0.1,0.1,0.0,0.0,1.0,1.0,0xFFFFFF00,0xFF00FF00);
+    //     add_circle_linearGradient(uhm_tester,0.05,0.05,0.05,0.5,0.0,0.5,1.0,0xFFFF00FF,0xFF00FFFF);
+    // add_endClause(uhm_tester);
+    // add_tiledPattern_startClause(uhm_tester,0.5,0.5,2,2);
+    //     add_placePattern(uhm_tester,69,0.2,0.2);
+    // add_endClause(uhm_tester);
+
+    // Example 4 - Rotate Modifier
+    // add_definePattern_startClause(uhm_tester,69);
+    //     add_circle_circularGradient(
+    //         uhm_tester,
+    //         0.0,0.0,
+    //         0.1,
+    //         0.5,0.5,
+    //         0.5,
+    //         0xFFFF00FF,0xFF00FF00
+    //     );
+
+    //     add_rotateModifier(uhm_tester,UHM_PI/4);
+    //     add_rectangle_linearGradient(
+    //         uhm_tester,
+    //         0,-0.15,
+    //         0.2,0.2,
+    //         0.0,0.0,
+    //         1.0,1.0,
+    //         0xFFFF00FF,
+    //         0xFFFFFF00
+    //     );
+    // add_endClause(uhm_tester);
+
+    // add_rotateModifier(uhm_tester,-UHM_PI/2);
+    // add_placePattern(uhm_tester,69,0.25,0.25);
+
+    // add_rotateModifier(uhm_tester,UHM_PI/8);
+    // add_placePattern(uhm_tester,69,0.25,0.65);
+
+    // add_rotateModifier(uhm_tester,UHM_PI+UHM_PI/8);
+    // add_placePattern(uhm_tester,69,0.75,0.75);
+
+    // add_rotateModifier(uhm_tester,UHM_PI/4);
+    // add_ellipse_linearGradient(
+    //     uhm_tester,
+    //     0.75,0.5,
+    //     0.1,0.2,
+    //     0.5,0.0,
+    //     0.5,1.0,
+    //     0xFFFF00FF,0xFF00FFFF
+    // );
+
+    // add_rotateModifier(uhm_tester,UHM_PI/8);
+    // add_circle_linearGradient(
+    //     uhm_tester,
+    //     0.5,0.5,
+    //     0.1,
+    //     0.5,0.0,
+    //     0.5,1.0,
+    //     0xFFFF00FF,0xFF00FFFF
+    // );
+
+    add_rotateModifier(uhm_tester,UHM_PI/8);
+    add_tiledPattern_startClause(uhm_tester,0.25,0.25,2,2);
+        add_rectangle_linearGradient(uhm_tester,0.1/2,0.1/2,0.1,0.1,0.0,0.0,1.0,1.0,0xFFFF00FF,0xFF00FF00);
     add_endClause(uhm_tester);
 
     char* data = uhm_encode(uhm_tester.data(),uhm_tester.size(),width,height);
