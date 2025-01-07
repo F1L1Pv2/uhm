@@ -217,8 +217,10 @@ void add_boilerplate(std::vector<char>& vec, uint32_t backgroundColor){
     add_color(vec,backgroundColor);
 }
 
-void add_tiledPattern_startClause(std::vector<char>& vec, float ox, float oy, uint16_t rows, uint16_t cols){
+void add_tiledPattern_startClause(std::vector<char>& vec,float gx, float gy, float ox, float oy, uint16_t rows, uint16_t cols){
     add_u8(vec,'T');
+    add_f32(vec,gx);
+    add_f32(vec,gy);
     add_f32(vec,ox);
     add_f32(vec,oy);
     add_u16(vec,rows);
@@ -359,7 +361,7 @@ int main(){
     // );
 
     add_rotateModifier(uhm_tester,UHM_PI/8);
-    add_tiledPattern_startClause(uhm_tester,0.25,0.25,2,2);
+    add_tiledPattern_startClause(uhm_tester,0,0,0.25,0.25,2,2);
         add_rectangle_linearGradient(uhm_tester,0.1/2,0.1/2,0.1,0.1,0.0,0.0,1.0,1.0,0xFFFF00FF,0xFF00FF00);
     add_endClause(uhm_tester);
 

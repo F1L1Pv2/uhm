@@ -574,6 +574,7 @@ typedef struct {
 } uhm_instructions;
 
 typedef struct{
+    float gx,gy;
     float ox,oy;
     uint16_t rows, cols;
     uhm_instructions instructions;
@@ -588,6 +589,8 @@ int uhm_parse_tiledPattern(uhm_tiledPattern* tiledPattern, char* data, uint32_t 
 
     int e;
     if(
+        (e=uhm_chopf32(data,size,cursor,&tiledPattern->gx))<0||
+        (e=uhm_chopf32(data,size,cursor,&tiledPattern->gy))<0||
         (e=uhm_chopf32(data,size,cursor,&tiledPattern->ox))<0||
         (e=uhm_chopf32(data,size,cursor,&tiledPattern->oy))<0||
         (e=uhm_chop16(data,size,cursor,&tiledPattern->rows))<0||
@@ -618,17 +621,37 @@ int uhm_parse_tiledPattern(uhm_tiledPattern* tiledPattern, char* data, uint32_t 
     return 0;
 }
 
+void uhm_rotate_point(float xIn, float yIn, float angle, float* xOut, float* yOut){
+    *xOut = xIn*cosf(angle) - yIn*sinf(angle);
+    *yOut = xIn*sinf(angle) + yIn*cosf(angle);
+}
+
 int uhm_draw_tiledPattern(uhm_tiledPattern* tiledPattern, uint32_t width, uint32_t height, char* output_data, float gx, float gy, float rotateIN){
-    if(rotateIN != 0 || rotateIN < 0 || rotateIN > 0 || tiledPattern->rotation != 0 || tiledPattern->rotation < 0 || tiledPattern->rotation > 0){
-        UHM_PRINTF("DrawTiledPattern rotation currently not supported \n");
-        return -1;
-    }
+    float rotate = tiledPattern->rotation + rotateIN;
+    
     int e;
     for(int i = 0; i < tiledPattern->rows; i++){
         for(int j = 0; j < tiledPattern->cols; j++){
             for(int index = 0; index < tiledPattern->instructions.count; index++){
                 if(tiledPattern->instructions.items[index].skip_draw) continue;
-                if((e=uhm_draw_instruction(&tiledPattern->instructions.items[index],width,height,output_data,tiledPattern->ox*j + gx,tiledPattern->oy*i + gy, rotateIN))<0) return e;
+
+                float outX, outY;
+                if(rotate == 0){
+                    outX = tiledPattern->gx + gx + tiledPattern->ox*j;
+                    outY = tiledPattern->gy + gy + tiledPattern->oy*i;
+                }
+                else{
+                    float rotateX,rotateY;
+                    float w = tiledPattern->cols;
+                    float h = tiledPattern->rows;
+
+                    uhm_rotate_point((float)j - w/4, i - h/4, -rotate, &rotateX, &rotateY);
+
+                    outX = tiledPattern->gx + gx + tiledPattern->ox*(rotateX + w/4);
+                    outY = tiledPattern->gy + gy + tiledPattern->oy*(rotateY + h/4);
+                }
+
+                if((e=uhm_draw_instruction(&tiledPattern->instructions.items[index],width,height,output_data,outX,outY, rotate))<0) return e;
             }
         }
     }
@@ -796,17 +819,21 @@ int uhm_draw_placePattern(uhm_place_pattern* patternDesc, uint32_t width, uint32
 
     for(int i = 0; i < pattern->instructions.count; i++){
         if(pattern->instructions.items[i].skip_draw) continue;
+        float outX, outY;
 
-        float localX, localY;
-        if((e=uhm_get_location(&pattern->instructions.items[i],&localX,&localY))<0) return e;
+        if(rotate == 0){
+            outX = realX;
+            outY = realY;
+        }else{
+            float localX, localY;
+            if((e=uhm_get_location(&pattern->instructions.items[i],&localX,&localY))<0) return e;
 
-        float rotatedX = (localX * cosf(-rotate) - localY *sinf(-rotate));
-        float rotatedY = (localX * sinf(-rotate) + localY *cosf(-rotate));
+            float rotatedX = (localX * cosf(-rotate) - localY *sinf(-rotate));
+            float rotatedY = (localX * sinf(-rotate) + localY *cosf(-rotate));
 
-        float outX = realX + (rotatedX - localX);
-        float outY = realY + (rotatedY - localY);
-        
-        // UHM_PRINTF("Angle %f deg\nNormal x: %fy %f\nRotated x: %fy: %f\n", rotate*180/UHM_PI,localX,localY,rotatedX,rotatedY);
+            outX = realX + (rotatedX - localX);
+            outY = realY + (rotatedY - localY);
+        }
 
         if((e=uhm_draw_instruction(&pattern->instructions.items[i],width,height,output_data,outX,outY, rotate))<0) return e;
     }
