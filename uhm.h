@@ -752,7 +752,7 @@ int uhm_parse_instruction(char* data, uint32_t size, uint32_t* cursor, uhm_instr
         return 0;
     }
     else if(opcode == 'T'){
-        uhm_tiledPattern tiledPattern;
+        uhm_tiledPattern tiledPattern = {0};
         if((e=uhm_parse_tiledPattern(&tiledPattern, data,size,cursor))<0) {
             if(tiledPattern.instructions.items != NULL) UHM_FREE(tiledPattern.instructions.items);
             return e;
