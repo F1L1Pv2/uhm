@@ -58,7 +58,7 @@ char* uhm_encode(char* data, uint32_t size, uint32_t width, uint32_t height);
 #ifndef UHM_NO_STDIO
 #include <stdio.h>
 
-#define UHM_PRINTF(x, ...) printf(x, __VA_ARGS__)
+#define UHM_PRINTF(x, ...) printf(x, ##__VA_ARGS__)
 #else
 #define UHM_PRINTF(x, ...)
 #endif
@@ -731,21 +731,21 @@ int uhm_parse_instruction(char* data, uint32_t size, uint32_t* cursor, uhm_instr
     instruction->opcode = opcode;
 
     if(opcode == 'R'){
-        uhm_rectangle rectangle;
+        uhm_rectangle rectangle = {0};
         if((e=uhm_parse_rectangle(&rectangle, data,size,cursor))<0) return e;
         instruction->data = UHM_MALLOC(sizeof(uhm_rectangle));
         *(uhm_rectangle*)(instruction->data) = rectangle;
         return 0;
     }
     else if(opcode == 'C'){
-        uhm_circle circle;
+        uhm_circle circle = {0};
         if((e=uhm_parse_circle(&circle, data,size,cursor))<0) return e;
         instruction->data = UHM_MALLOC(sizeof(uhm_circle));
         *(uhm_circle*)(instruction->data) = circle;
         return 0;
     }
     else if(opcode == 'E'){
-        uhm_ellipse ellipse;
+        uhm_ellipse ellipse = {0};
         if((e=uhm_parse_ellipse(&ellipse, data,size,cursor))<0) return e;
         instruction->data = UHM_MALLOC(sizeof(uhm_ellipse));
         *(uhm_ellipse*)(instruction->data) = ellipse;
