@@ -603,19 +603,26 @@ int uhm_parse_tiledPattern(uhm_tiledPattern* tiledPattern, char* data, uint32_t 
 
     while(true){
         if(*cursor == size){
-            UHM_PRINTF("end clause wasn't found\n");
-            return -1;
-        }
-        uhm_instruction instruction = {0};
-        if((e=uhm_parse_instruction(data,size,cursor,&instruction))<0){
-            if(instruction.data) UHM_FREE(instruction.data);
-            return e;
-        }
+                UHM_PRINTF("end clause wasn't found\n");
+                return -1;
+            }
+            uhm_instruction innerInstruction = {0};
+            if((e=uhm_parse_instruction(data,size,cursor,&innerInstruction))<0){
+                UHM_PRINTF("couldn't parse instruction\n");
+                return e;
+            }
 
-        if(instruction.skip_draw) continue;
-        if(instruction.opcode == ']') break;
+            if(innerInstruction.opcode == 'P' && innerInstruction.skip_draw == true){
+                if(innerInstruction.data) UHM_FREE(innerInstruction.data);
 
-        uhm_append(&tiledPattern->instructions,instruction);
+                UHM_PRINTF("you cannot define pattern insde of tiled pattern\n");
+                return -1;
+            }
+
+            if(innerInstruction.skip_draw) continue;
+            if(innerInstruction.opcode == ']') break;
+
+            uhm_append(&tiledPattern->instructions,innerInstruction);
     }
 
     return 0;
@@ -714,16 +721,25 @@ int uhm_parse_pattern(char* data, uint32_t size, uint32_t* cursor, uhm_instructi
                 UHM_PRINTF("end clause wasn't found\n");
                 return -1;
             }
-            uhm_instruction instruction = {0};
-            if((e=uhm_parse_instruction(data,size,cursor,&instruction))<0){
-                if(instruction.data) UHM_FREE(instruction.data);
+            uhm_instruction innerInstruction = {0};
+            if((e=uhm_parse_instruction(data,size,cursor,&innerInstruction))<0){
+                UHM_PRINTF("couldn't parse instruction\n");
+                if(instruction->data) UHM_FREE(instruction->data);
                 return e;
             }
 
-            if(instruction.skip_draw) continue;
-            if(instruction.opcode == ']') break;
+            if(innerInstruction.opcode == 'P' && innerInstruction.skip_draw == true){
+                if(innerInstruction.data) UHM_FREE(innerInstruction.data);
+                if(instruction->data) UHM_FREE(instruction->data);
 
-            uhm_append(&pattern.instructions,instruction);
+                UHM_PRINTF("you cannot define pattern insde of defining pattern\n");
+                return -1;
+            }
+
+            if(innerInstruction.skip_draw) continue;
+            if(innerInstruction.opcode == ']') break;
+
+            uhm_append(&pattern.instructions,innerInstruction);
         }
 
         uhm_append(&patterns, pattern);
