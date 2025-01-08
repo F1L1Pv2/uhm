@@ -941,7 +941,7 @@ char* uhm_encode(char* data, uint32_t size, uint32_t width, uint32_t height){
         if((e=uhm_parse_instruction(data,size,&cursor,&instruction))<0) {
             UHM_FREE(output_data);
             if(instruction.data) UHM_FREE(instruction.data);
-            if(instruction.opcode == 'T') UHM_FREE(((uhm_tiledPattern*)instruction.data)->instructions.items);
+            if(instruction.opcode == 'T' && instruction.data != NULL) UHM_FREE(((uhm_tiledPattern*)instruction.data)->instructions.items);
             return NULL;
         }
 
@@ -949,7 +949,7 @@ char* uhm_encode(char* data, uint32_t size, uint32_t width, uint32_t height){
             if((e=uhm_draw_instruction(&instruction,width,height,output_data, 0, 0, 0))<0) {
                 UHM_FREE(output_data);
                 if(instruction.data) UHM_FREE(instruction.data);
-                if(instruction.opcode == 'T') UHM_FREE(((uhm_tiledPattern*)instruction.data)->instructions.items);
+                if(instruction.opcode == 'T' && instruction.data != NULL) UHM_FREE(((uhm_tiledPattern*)instruction.data)->instructions.items);
                 return NULL;
             }
         }
