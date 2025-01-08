@@ -66,6 +66,8 @@ char* uhm_encode(char* data, uint32_t size, uint32_t width, uint32_t height);
 #ifdef UHM_IMPLEMENTATION
 bool uhm_rotateModifierActive = false;
 float uhm_rotateModifierVal = 0.0f;
+bool uhm_scaleModifierActive = false;
+float uhm_scaleModifierVal = 1.0f;
 
 int uhm_peek(char* data, uint32_t size, uint32_t cursor, char* out){
     if(cursor + 1 > size) return -1;
@@ -244,12 +246,20 @@ typedef struct {
     uint32_t color,color2;
     uint8_t fillType;
     float rotation;
+    float scale;
 } uhm_rectangle;
 
 int uhm_parse_rectangle(uhm_rectangle* rectangle, char* data, uint32_t size, uint32_t* cursor){
     if(uhm_rotateModifierActive){
         rectangle->rotation = uhm_rotateModifierVal;
         uhm_rotateModifierActive = false;
+    }
+
+    if(uhm_scaleModifierActive){
+        rectangle->scale = uhm_scaleModifierVal;
+        uhm_scaleModifierActive = false;
+    }else{
+        rectangle->scale = 1.0f;
     }
     
     int e;
@@ -291,14 +301,15 @@ int uhm_parse_rectangle(uhm_rectangle* rectangle, char* data, uint32_t size, uin
     return 0;
 }
 
-int uhm_draw_rectangle(uhm_rectangle* rectangle,uint32_t width, uint32_t height, char* output_data, float gx, float gy, float rotateIN){
+int uhm_draw_rectangle(uhm_rectangle* rectangle,uint32_t width, uint32_t height, char* output_data, float gx, float gy, float rotateIN, float scaleIN){
+    float scale = rectangle->scale * scaleIN;
     float rotate = -(rectangle->rotation + rotateIN);
     float centerX = (rectangle->x + gx) * width;
     float centerY = (rectangle->y + gy) * height;
     float cosTheta = cosf(rotate);
     float sinTheta = sinf(rotate);
-    float halfWidth = rectangle->width * width / 2.0f;
-    float halfHeight = rectangle->height * height / 2.0f;
+    float halfWidth = (rectangle->width * scale) * width / 2.0f;
+    float halfHeight = (rectangle->height * scale) * height / 2.0f;
 
     UHM_PRINTF("Drawing rectangle x: %.2f, y: %.2f, width: %.2f, height: %.2f\n", centerX, centerY, halfWidth * 2, halfHeight * 2);
 
@@ -342,12 +353,20 @@ typedef struct {
     uint8_t fillType;
     uint32_t color,color2;
     float rotation;
+    float scale;
 } uhm_circle;
 
 int uhm_parse_circle(uhm_circle* circle, char* data, uint32_t size, uint32_t* cursor){
     if(uhm_rotateModifierActive){
         circle->rotation = uhm_rotateModifierVal;
         uhm_rotateModifierActive = false;
+    }
+
+    if(uhm_scaleModifierActive){
+        circle->scale = uhm_scaleModifierVal;
+        uhm_scaleModifierActive = false;
+    }else{
+        circle->scale = 1.0f;
     }
 
     int e;
@@ -389,11 +408,12 @@ int uhm_parse_circle(uhm_circle* circle, char* data, uint32_t size, uint32_t* cu
     return 0;
 }
 
-int uhm_draw_circle(uhm_circle* circle, uint32_t width, uint32_t height, char* output_data, float gx, float gy, float rotateIN){
+int uhm_draw_circle(uhm_circle* circle, uint32_t width, uint32_t height, char* output_data, float gx, float gy, float rotateIN, float scaleIN){
+    float scale = circle->scale * scaleIN;
     float rotate = circle->rotation + rotateIN;
     int32_t realX = (circle->x+gx)*width;
     int32_t realY = (circle->y+gy)*width;
-    int32_t realR = circle->r*width;
+    int32_t realR = (circle->r*scale)*width;
 
     UHM_PRINTF("Drawing circle x: %d y: %d radius: %d\n",realX,realY,realR);
 
@@ -447,12 +467,20 @@ typedef struct {
     uint8_t fillType;
     uint32_t color,color2;
     float rotation;
+    float scale;
 } uhm_ellipse;
 
 int uhm_parse_ellipse(uhm_ellipse* ellipse, char* data, uint32_t size, uint32_t* cursor){
     if(uhm_rotateModifierActive){
         ellipse->rotation = uhm_rotateModifierVal;
         uhm_rotateModifierActive = false;
+    }
+
+    if(uhm_scaleModifierActive){
+        ellipse->scale = uhm_scaleModifierVal;
+        uhm_scaleModifierActive = false;
+    }else{
+        ellipse->scale = 1.0f;
     }
 
     int e;
@@ -496,14 +524,15 @@ int uhm_parse_ellipse(uhm_ellipse* ellipse, char* data, uint32_t size, uint32_t*
 }
 
 
-int uhm_draw_ellipse(uhm_ellipse* ellipse, uint32_t width, uint32_t height, char* output_data, float gx, float gy, float rotateIN) {
+int uhm_draw_ellipse(uhm_ellipse* ellipse, uint32_t width, uint32_t height, char* output_data, float gx, float gy, float rotateIN, float scaleIN) {
+    float scale = ellipse->scale * scaleIN;
     float rotate = -(ellipse->rotation + rotateIN);
     float realX = (ellipse->x + gx) * width;
     float realY = (ellipse->y + gy) * height;
     float centerX = realX;
     float centerY = realY;
-    float realRx = ellipse->rw * width;
-    float realRy = ellipse->rh * height;
+    float realRx = (ellipse->rw*scale) * width;
+    float realRy = (ellipse->rh*scale) * height;
     float cosTheta = cosf(rotate);
     float sinTheta = sinf(rotate);
 
@@ -564,7 +593,7 @@ typedef struct{
 } uhm_instruction;
 
 int uhm_parse_instruction(char* data, uint32_t size, uint32_t* cursor, uhm_instruction* instruction);
-int uhm_draw_instruction(uhm_instruction* instruction, uint32_t width, uint32_t height, char* output_data, float gx, float gy, float rotation);
+int uhm_draw_instruction(uhm_instruction* instruction, uint32_t width, uint32_t height, char* output_data, float gx, float gy, float rotation, float scaleIN);
 int uhm_get_location(uhm_instruction* instruction, float* out_x, float* out_y);
 
 typedef struct {
@@ -579,12 +608,20 @@ typedef struct{
     uint16_t rows, cols;
     uhm_instructions instructions;
     float rotation;
+    float scale;
 } uhm_tiledPattern;
 
 int uhm_parse_tiledPattern(uhm_tiledPattern* tiledPattern, char* data, uint32_t size, uint32_t* cursor){
     if(uhm_rotateModifierActive){
         tiledPattern->rotation = uhm_rotateModifierVal;
         uhm_rotateModifierActive = false;
+    }
+
+    if(uhm_scaleModifierActive){
+        tiledPattern->scale = uhm_scaleModifierVal;
+        uhm_scaleModifierActive = false;
+    }else{
+        tiledPattern->scale = 1.0f;
     }
 
     int e;
@@ -633,10 +670,21 @@ void uhm_rotate_point(float xIn, float yIn, float angle, float* xOut, float* yOu
     *yOut = xIn*sinf(angle) + yIn*cosf(angle);
 }
 
-int uhm_draw_tiledPattern(uhm_tiledPattern* tiledPattern, uint32_t width, uint32_t height, char* output_data, float gx, float gy, float rotateIN){
+int uhm_draw_tiledPattern(uhm_tiledPattern* tiledPattern, uint32_t width, uint32_t height, char* output_data, float gx, float gy, float rotateIN, float scaleIN){
+    float scale = tiledPattern->scale * scaleIN;
     float rotate = tiledPattern->rotation + rotateIN;
     
     int e;
+    float w = tiledPattern->cols;
+    float h = tiledPattern->rows;
+
+    float scaledW, scaledH;
+
+    if(scale != 1){
+        scaledW = w * scale;
+        scaledH = h * scale;
+    }
+
     for(int i = 0; i < tiledPattern->rows; i++){
         for(int j = 0; j < tiledPattern->cols; j++){
             for(int index = 0; index < tiledPattern->instructions.count; index++){
@@ -644,21 +692,30 @@ int uhm_draw_tiledPattern(uhm_tiledPattern* tiledPattern, uint32_t width, uint32
 
                 float outX, outY;
                 if(rotate == 0){
-                    outX = tiledPattern->gx + gx + tiledPattern->ox*j;
-                    outY = tiledPattern->gy + gy + tiledPattern->oy*i;
+                    outX = tiledPattern->ox*scale*j;
+                    outY = tiledPattern->oy*scale*i;
                 }
                 else{
                     float rotateX,rotateY;
-                    float w = tiledPattern->cols;
-                    float h = tiledPattern->rows;
 
                     uhm_rotate_point((float)j - w/4, i - h/4, -rotate, &rotateX, &rotateY);
 
-                    outX = tiledPattern->gx + gx + tiledPattern->ox*(rotateX + w/4);
-                    outY = tiledPattern->gy + gy + tiledPattern->oy*(rotateY + h/4);
+                    outX = tiledPattern->ox*scale*(rotateX + w/4);
+                    outY = tiledPattern->oy*scale*(rotateY + h/4);
                 }
 
-                if((e=uhm_draw_instruction(&tiledPattern->instructions.items[index],width,height,output_data,outX,outY, rotate))<0) return e;
+                if(scale != 1){
+                    float diffX = scaledW/4 - w/4;
+                    float diffY = scaledH/4 - h/4;
+
+                    outX -= tiledPattern->ox*diffX;
+                    outY -= tiledPattern->oy*diffY;
+                }
+
+                outX += gx + tiledPattern->gx;
+                outY += gy + tiledPattern->gy;
+
+                if((e=uhm_draw_instruction(&tiledPattern->instructions.items[index],width,height,output_data,outX,outY, rotate, scale))<0) return e;
             }
         }
     }
@@ -675,6 +732,7 @@ typedef struct {
     float x;
     float y;
     float rotation;
+    float scale;
 } uhm_place_pattern;
 
 typedef struct {
@@ -708,6 +766,12 @@ int uhm_parse_pattern(char* data, uint32_t size, uint32_t* cursor, uhm_instructi
         if(uhm_rotateModifierActive){
             ((uhm_place_pattern*)(instruction->data))->rotation = uhm_rotateModifierVal;
             uhm_rotateModifierActive = false;
+        }
+        if(uhm_scaleModifierActive){
+            ((uhm_place_pattern*)(instruction->data))->scale = uhm_scaleModifierVal;
+            uhm_scaleModifierActive = false;
+        }else{
+            ((uhm_place_pattern*)(instruction->data))->scale = 1.0f;
         }
         return 0;
     }
@@ -762,6 +826,20 @@ int uhm_parse_rotateModifier(char* data, uint32_t size, uint32_t* cursor, uhm_in
     return 0;
 }
 
+int uhm_parse_scaleModifier(char* data, uint32_t size, uint32_t* cursor, uhm_instruction* instruction){
+    instruction->skip_draw = true;
+    int e;
+    float intermediate;
+    if((e=uhm_chopf32(data,size,cursor,&intermediate))<0) return e;
+    if(uhm_scaleModifierActive){
+        uhm_scaleModifierVal *= intermediate;
+    }else{
+        uhm_scaleModifierVal = intermediate;
+    }
+    uhm_scaleModifierActive = true;
+    return 0;
+}
+
 int uhm_parse_instruction(char* data, uint32_t size, uint32_t* cursor, uhm_instruction* instruction){
     int e;
     uint8_t opcode;
@@ -806,6 +884,9 @@ int uhm_parse_instruction(char* data, uint32_t size, uint32_t* cursor, uhm_instr
     else if(opcode == '|'){
         return uhm_parse_rotateModifier(data,size,cursor,instruction);
     }
+    else if(opcode == '\\'){
+        return uhm_parse_scaleModifier(data,size,cursor,instruction);
+    }
     else if(opcode == ']'){
         return 0;
     }
@@ -814,7 +895,8 @@ int uhm_parse_instruction(char* data, uint32_t size, uint32_t* cursor, uhm_instr
     return -1;
 };
 
-int uhm_draw_placePattern(uhm_place_pattern* patternDesc, uint32_t width, uint32_t height, char* output_data, float gx, float gy, float rotateIN){
+int uhm_draw_placePattern(uhm_place_pattern* patternDesc, uint32_t width, uint32_t height, char* output_data, float gx, float gy, float rotateIN, float scaleIN){
+    float scale = patternDesc->scale * scaleIN;
     float rotate = patternDesc->rotation + rotateIN;
     
     uhm_pattern* pattern = NULL;
@@ -836,22 +918,40 @@ int uhm_draw_placePattern(uhm_place_pattern* patternDesc, uint32_t width, uint32
     for(int i = 0; i < pattern->instructions.count; i++){
         if(pattern->instructions.items[i].skip_draw) continue;
         float outX, outY;
+        float localX, localY;
+        float scaledLocalX, scaledLocalY;
+
+        if(rotate != 0 || scale != 1) {
+            if((e=uhm_get_location(&pattern->instructions.items[i],&localX,&localY))<0) return e;
+            scaledLocalX = localX;
+            scaledLocalY = localY;
+            if(scale != 1){
+                scaledLocalX *= scale;
+                scaledLocalY *= scale;
+            }
+        }
 
         if(rotate == 0){
             outX = realX;
             outY = realY;
         }else{
-            float localX, localY;
-            if((e=uhm_get_location(&pattern->instructions.items[i],&localX,&localY))<0) return e;
+            float rotatedX = (scaledLocalX * cosf(-rotate) - scaledLocalY *sinf(-rotate));
+            float rotatedY = (scaledLocalX * sinf(-rotate) + scaledLocalY *cosf(-rotate));
 
-            float rotatedX = (localX * cosf(-rotate) - localY *sinf(-rotate));
-            float rotatedY = (localX * sinf(-rotate) + localY *cosf(-rotate));
+            outX = realX + (rotatedX - scaledLocalX);
+            outY = realY + (rotatedY - scaledLocalY);
 
-            outX = realX + (rotatedX - localX);
-            outY = realY + (rotatedY - localY);
         }
 
-        if((e=uhm_draw_instruction(&pattern->instructions.items[i],width,height,output_data,outX,outY, rotate))<0) return e;
+        if(scale != 1){
+            float diffX = scaledLocalX - localX;
+            float diffY = scaledLocalY - localY;
+
+            outX += diffX;
+            outY += diffY;
+        }
+
+        if((e=uhm_draw_instruction(&pattern->instructions.items[i],width,height,output_data,outX,outY, rotate, scale))<0) return e;
     }
     return 0;
 }
@@ -885,13 +985,13 @@ int uhm_get_location(uhm_instruction* instruction, float* out_x, float* out_y){
     return 0;
 }
 
-int uhm_draw_instruction(uhm_instruction* instruction, uint32_t width, uint32_t height, char* output_data, float gx, float gy, float rotation){
+int uhm_draw_instruction(uhm_instruction* instruction, uint32_t width, uint32_t height, char* output_data, float gx, float gy, float rotation, float scale){
     int e;
-         if(instruction->opcode == 'R') {if((e=uhm_draw_rectangle((uhm_rectangle*)instruction->data,width,height,output_data, gx, gy, rotation))<0) return e;}
-    else if(instruction->opcode == 'C') {if((e=uhm_draw_circle((uhm_circle*)instruction->data,width,height,output_data, gx, gy, rotation))<0) return e;}
-    else if(instruction->opcode == 'E') {if((e=uhm_draw_ellipse((uhm_ellipse*)instruction->data,width,height,output_data, gx, gy, rotation))<0) return e;}
-    else if(instruction->opcode == 'T') {if((e=uhm_draw_tiledPattern((uhm_tiledPattern*)instruction->data,width,height,output_data, gx, gy, rotation))<0) return e;}
-    else if(instruction->opcode == 'P') {if((e=uhm_draw_placePattern((uhm_place_pattern*)instruction->data,width,height,output_data, gx, gy, rotation))<0) return e;}
+         if(instruction->opcode == 'R') {if((e=uhm_draw_rectangle((uhm_rectangle*)instruction->data,width,height,output_data, gx, gy, rotation, scale))<0) return e;}
+    else if(instruction->opcode == 'C') {if((e=uhm_draw_circle((uhm_circle*)instruction->data,width,height,output_data, gx, gy, rotation, scale))<0) return e;}
+    else if(instruction->opcode == 'E') {if((e=uhm_draw_ellipse((uhm_ellipse*)instruction->data,width,height,output_data, gx, gy, rotation, scale))<0) return e;}
+    else if(instruction->opcode == 'T') {if((e=uhm_draw_tiledPattern((uhm_tiledPattern*)instruction->data,width,height,output_data, gx, gy, rotation, scale))<0) return e;}
+    else if(instruction->opcode == 'P') {if((e=uhm_draw_placePattern((uhm_place_pattern*)instruction->data,width,height,output_data, gx, gy, rotation, scale))<0) return e;}
     else{
         UHM_PRINTF("Draw: Unknown Opcode %c\n", instruction->opcode);
         return -1; 
@@ -946,7 +1046,7 @@ char* uhm_encode(char* data, uint32_t size, uint32_t width, uint32_t height){
         }
 
         if(!instruction.skip_draw){
-            if((e=uhm_draw_instruction(&instruction,width,height,output_data, 0, 0, 0))<0) {
+            if((e=uhm_draw_instruction(&instruction,width,height,output_data, 0, 0, 0, 1))<0) {
                 UHM_FREE(output_data);
                 if(instruction.data) UHM_FREE(instruction.data);
                 if(instruction.opcode == 'T' && instruction.data != NULL) UHM_FREE(((uhm_tiledPattern*)instruction.data)->instructions.items);
